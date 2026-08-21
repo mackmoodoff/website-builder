@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Shopify OAuth session storage (required shape for @shopify/shopify-app-session-storage-prisma)
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+// One AI-generated store build for a shop
+model StoreProject {
+  id            String   @id @default(cuid())
+  shop          String
+  prompt        String
+  businessName  String
+  status        String   @default("draft") // draft | generated | pushed | failed
+  plan          String? // JSON string: generated store plan (pages, sections, copy)
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([shop])
+}
