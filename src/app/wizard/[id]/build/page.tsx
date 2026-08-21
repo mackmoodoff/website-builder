@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import type { SitePlan } from "@/lib/site-plan";
 
 type BuildLogEntry = {
   step: string;
@@ -13,7 +14,7 @@ type BuildLogEntry = {
 type StatusResponse = {
   status: string;
   buildLog: BuildLogEntry[];
-  sitePlan: unknown;
+  sitePlan: SitePlan | null;
   error: string | null;
   themeId: string | null;
   themePreviewUrl: string | null;
@@ -22,9 +23,10 @@ type StatusResponse = {
 type PushResult = {
   product: { ok: boolean; productId?: string; error?: string };
   media: { attempted: number; uploaded: number; errors: string[] };
-  theme: { ok: boolean; themeId?: number; previewUrl?: string; error?: string };
-  logo: { manual: true; hasLogo: boolean };
-  hero: { manual: true; heading: string; subheading: string };
+  theme: { ok: boolean; themeId?: string; previewUrl?: string; error?: string };
+  themeContent:
+    | { mode: "auto" }
+    | { mode: "manual"; heading: string; subheading: string; hasLogo: boolean; reason: string };
 };
 
 const TOTAL_STEPS = 4; // review, home_copy, product_copy, cart_checkout
@@ -143,20 +145,65 @@ export default function BuildPage() {
         </section>
       )}
 
-      {pushResult && pushResult.theme.ok && (
-        <section className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          <p className="font-medium">Finish branding manually in the Theme Editor</p>
-          <p>
-            Shopify blocks apps from writing theme code automatically unless granted a
-            special exemption — so set these yourself in the theme customizer (takes ~1 minute):
-          </p>
-          {pushResult.logo.hasLogo && <p>1. Header → Logo: upload the brand logo you provided.</p>}
-          <p>
-            {pushResult.logo.hasLogo ? "2" : "1"}. Homepage hero heading: <strong>{pushResult.hero.heading}</strong>
-          </p>
-          <p>
-            {pushResult.logo.hasLogo ? "3" : "2"}. Homepage hero subheading: <strong>{pushResult.hero.subheading}</strong>
-          </p>
+      {pushResult && pushResult.theme.ok && pushResult.themeContent.mode === "auto" && (
+        <section className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+          <p className="font-medium">Branding applied automatically</p>
+          <p>Logo, homepage hero heading/subheading, and brand color were pushed via the Shopify CLI.</p>
+        </section>
+      )}
+
+      {pushResult && pushResult.theme.ok && pushResult.themeContent.mode === "manual" && status?.sitePlan && (
+        <section className="flex flex-col gap-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <div>
+            <p className="font-medium">Automatic branding wasn&apos;t available — finish manually in the Theme Editor</p>
+            <p className="text-xs opacity-80">Reason: {pushResult.themeContent.reason}</p>
+            <p>
+              Everything below is already written by Claude — paste it into the theme customizer
+              (~5 minutes total).
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold">Header</p>
+            {pushResult.themeContent.hasLogo && <p>• Logo: upload the brand logo you provided.</p>}
+          </div>
+
+          <div>
+            <p className="font-semibold">Homepage — Image banner section</p>
+            <p>
+              • Heading: <strong>{pushResult.themeContent.heading}</strong>
+            </p>
+            <p>
+              • Subheading: <strong>{pushResult.themeContent.subheading}</strong>
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold">Homepage — add a section per item below (Rich text or Text works)</p>
+            {status.sitePlan.home.sections.map((s, i) => (
+              <p key={i}>
+                • <strong>{s.heading}</strong> — {s.body}
+              </p>
+            ))}
+          </div>
+
+          <div>
+            <p className="font-semibold">Product page — paste into the product&apos;s description</p>
+            <p>
+              • Headline: <strong>{status.sitePlan.productPage.headline}</strong>
+            </p>
+            {status.sitePlan.productPage.bulletPoints.map((b, i) => (
+              <p key={i}>• {b}</p>
+            ))}
+            <p>Trust badges: {status.sitePlan.productPage.trustBadges.join(" · ")}</p>
+          </div>
+
+          <div>
+            <p className="font-semibold">Cart &amp; checkout messaging</p>
+            <p>• Cart shipping note: {status.sitePlan.cart.shippingNote}</p>
+            <p>• Cart upsell message: {status.sitePlan.cart.upsellMessage}</p>
+            <p>• Checkout thank-you message (Settings → Checkout): {status.sitePlan.checkoutBranding.thankYouMessage}</p>
+          </div>
         </section>
       )}
     </main>

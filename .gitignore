@@ -42,6 +42,9 @@ yarn-error.log*
 /prisma/dev.db-journal
 /generated/prisma
 
+# cached Dawn theme base used by the wizard's Shopify CLI push
+/.cache
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
