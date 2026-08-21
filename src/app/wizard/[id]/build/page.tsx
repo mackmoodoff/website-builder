@@ -122,7 +122,7 @@ export default function BuildPage() {
       {pushError && <p className="text-sm text-red-600">{pushError}</p>}
 
       {pushResult && (
-        <section className="flex flex-col gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm">
+        <section className="flex flex-col gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
           <p className="font-medium">Pushed to Shopify</p>
           <p>Product: {pushResult.product.ok ? "created (draft)" : `failed — ${pushResult.product.error}`}</p>
           <p>

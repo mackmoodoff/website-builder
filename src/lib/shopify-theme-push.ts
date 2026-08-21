@@ -39,18 +39,34 @@ export async function createDawnTheme(session: Session, name: string): Promise<n
 export async function waitForThemeReady(session: Session, themeId: number, maxAttempts = 30): Promise<void> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const result = await shopifyRest<{ theme: { processing: boolean } }>(session, `/themes/${themeId}.json`);
-    if (!result.theme.processing) return;
+    if (!result.theme.processing) {
+      // The theme's file list can take a few extra seconds to become queryable
+      // even after `processing` flips false — give it a buffer.
+      await sleep(5000);
+      return;
+    }
     await sleep(3000);
   }
   throw new Error("Timed out waiting for the Dawn theme copy to finish processing on Shopify");
 }
 
 async function getAsset(session: Session, themeId: number, key: string): Promise<string> {
-  const result = await shopifyRest<{ asset: { value: string } }>(
-    session,
-    `/themes/${themeId}/assets.json?asset[key]=${encodeURIComponent(key)}`,
-  );
-  return result.asset.value;
+  const path = `/themes/${themeId}/assets.json?asset[key]=${encodeURIComponent(key)}`;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const result = await shopifyRest<{ asset: { value: string } }>(session, path);
+      return result.asset.value;
+    } catch (err) {
+      lastErr = err;
+      if (String(err).includes("404")) {
+        await sleep(3000);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 async function putAssetValue(session: Session, themeId: number, key: string, value: string): Promise<void> {

@@ -151,7 +151,7 @@ function GeneratePageInner() {
       )}
 
       {pushResult && (
-        <section className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm">
+        <section className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
           <p className="font-medium">Pushed to Shopify</p>
           <p>Pages: {pushResult.pages.filter((p) => p.ok).length}/{pushResult.pages.length} created</p>
           <p>Products: {pushResult.products.filter((p) => p.ok).length}/{pushResult.products.length} created</p>
