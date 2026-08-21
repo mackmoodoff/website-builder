@@ -31,11 +31,26 @@ function sleep(ms: number): Promise<void> {
 }
 
 export async function createDawnTheme(session: Session, name: string): Promise<number> {
-  const result = await shopifyRest<{ theme: { id: number } }>(session, "/themes.json", {
-    method: "POST",
-    body: JSON.stringify({ theme: { name, src: DAWN_THEME_ZIP, role: "unpublished" } }),
-  });
-  return result.theme.id;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const result = await shopifyRest<{ theme: { id: number } }>(session, "/themes.json", {
+        method: "POST",
+        body: JSON.stringify({ theme: { name, src: DAWN_THEME_ZIP, role: "unpublished" } }),
+      });
+      return result.theme.id;
+    } catch (err) {
+      lastErr = err;
+      // Shopify fetching the Dawn zip from GitHub occasionally comes back empty
+      // (transient GitHub-side hiccup, not our request) — retry a few times.
+      if (String(err).includes('"src"') && attempt < 2) {
+        await sleep(10_000);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 export async function waitForThemeReady(session: Session, themeId: number, maxAttempts = 30): Promise<void> {
