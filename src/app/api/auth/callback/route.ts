@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   session.scope = tokenResponse.scope;
   await sessionStorage.storeSession(session);
 
-  const response = NextResponse.redirect(`${appUrl}/generate?shop=${encodeURIComponent(shop)}`);
+  const response = NextResponse.redirect(`${appUrl}/wizard?shop=${encodeURIComponent(shop)}`);
   response.cookies.delete("shopify_oauth_state");
   response.cookies.delete("shopify_oauth_shop");
   return response;

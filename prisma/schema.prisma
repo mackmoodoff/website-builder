@@ -42,3 +42,61 @@ model StoreProject {
 
   @@index([shop])
 }
+
+// Multi-step "clone a competitor store" wizard run
+model StoreWizard {
+  id          String @id @default(cuid())
+  shop        String
+
+  // Step 2: market + product + brand + competitors
+  market            String // country code: US | CA | TR | UK | ES
+  language          String // derived from market: en | tr | es
+  productName       String
+  productDescription String
+  supplierUrl       String?
+  brandName         String
+  brandLogoDataUrl  String? // data: URL (uploaded logo, small enough for SQLite text column)
+  brandColor        String // hex, e.g. #1a1a1a
+  storeEmail        String
+  competitorLinks   String // JSON string array, first entry is the "main" competitor
+
+  // Step 3: scraped reference material
+  scrapedData String? // JSON: { competitor: {...}, supplier: {...} }
+
+  // Step 6: AI-generated, structure-inspired (not verbatim) site plan
+  sitePlan String? // JSON string: { home, productPage, cart, checkoutBranding }
+
+  // Step 6: live build progress log, appended to as the background job runs
+  buildLog String @default("[]") // JSON array of { step, status, message, at }
+
+  // Step 7: push result
+  themeId        String?
+  themePreviewUrl String?
+
+  status String @default("draft")
+  // draft -> materials -> creatives_ready -> building -> built -> pushed -> failed
+  error  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  images StoreImage[]
+
+  @@index([shop])
+}
+
+// A single reference or AI-generated image for a wizard run
+model StoreImage {
+  id       String @id @default(cuid())
+  wizardId String
+  wizard   StoreWizard @relation(fields: [wizardId], references: [id])
+
+  source   String // "competitor" | "supplier" | "generated"
+  prompt   String? // creative brief used, for generated images
+  dataUrl  String // data: URL or remote https URL
+  selected Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([wizardId])
+}
