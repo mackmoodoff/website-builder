@@ -1,8 +1,8 @@
 import type { Session } from "@shopify/shopify-api";
+import { shopify } from "./shopify";
 
 const API_VERSION = "2026-07";
 const DAWN_THEME_ZIP = "https://github.com/Shopify/dawn/archive/refs/heads/main.zip";
-const HERO_SECTION_TYPES = new Set(["image-banner", "slideshow"]);
 
 function restUrl(shop: string, path: string): string {
   return `https://${shop}/admin/api/${API_VERSION}${path}`;
@@ -40,8 +40,6 @@ export async function waitForThemeReady(session: Session, themeId: number, maxAt
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const result = await shopifyRest<{ theme: { processing: boolean } }>(session, `/themes/${themeId}.json`);
     if (!result.theme.processing) {
-      // The theme's file list can take a few extra seconds to become queryable
-      // even after `processing` flips false — give it a buffer.
       await sleep(5000);
       return;
     }
@@ -50,95 +48,72 @@ export async function waitForThemeReady(session: Session, themeId: number, maxAt
   throw new Error("Timed out waiting for the Dawn theme copy to finish processing on Shopify");
 }
 
-async function getAsset(session: Session, themeId: number, key: string): Promise<string> {
-  const path = `/themes/${themeId}/assets.json?asset[key]=${encodeURIComponent(key)}`;
-  let lastErr: unknown;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const result = await shopifyRest<{ asset: { value: string } }>(session, path);
-      return result.asset.value;
-    } catch (err) {
-      lastErr = err;
-      if (String(err).includes("404")) {
-        await sleep(3000);
-        continue;
-      }
-      throw err;
+const THEME_FILES_UPSERT = `#graphql
+  mutation ThemeFilesUpsert($themeId: ID!, $files: [OnlineStoreThemeFilesUpsertFileInput!]!) {
+    themeFilesUpsert(themeId: $themeId, files: $files) {
+      upsertedThemeFiles { filename }
+      userErrors { field message }
     }
   }
-  throw lastErr;
+`;
+
+function escapeLiquidText(text: string): string {
+  return text.replace(/\{\{/g, "&#123;&#123;").replace(/\{%/g, "&#123;&#37;");
 }
 
-async function putAssetValue(session: Session, themeId: number, key: string, value: string): Promise<void> {
-  await shopifyRest(session, `/themes/${themeId}/assets.json`, {
-    method: "PUT",
-    body: JSON.stringify({ asset: { key, value } }),
-  });
-}
-
-async function putAssetAttachment(session: Session, themeId: number, key: string, base64: string): Promise<void> {
-  await shopifyRest(session, `/themes/${themeId}/assets.json`, {
-    method: "PUT",
-    body: JSON.stringify({ asset: { key, attachment: base64 } }),
-  });
-}
-
-/** Best-effort: upload the brand logo as a theme asset and point Dawn's "logo" setting at it. */
-export async function setThemeLogo(session: Session, themeId: number, logoDataUrl: string): Promise<void> {
-  const match = logoDataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) throw new Error("Brand logo is not a valid base64 data URL");
-  const extension = match[1].split("/")[1] || "png";
-  const assetKey = `assets/ai-store-builder-logo.${extension}`;
-
-  await putAssetAttachment(session, themeId, assetKey, match[2]);
-
-  const settingsRaw = await getAsset(session, themeId, "config/settings_data.json");
-  const settings = JSON.parse(settingsRaw);
-  if (settings.current && typeof settings.current === "object") {
-    settings.current.logo = `ai-store-builder-logo.${extension}`;
-    await putAssetValue(session, themeId, "config/settings_data.json", JSON.stringify(settings));
-  } else {
-    throw new Error("settings_data.json did not have the expected shape (current object)");
-  }
-}
-
-/** Best-effort: find the homepage hero-like section and override its heading/text blocks. */
-export async function setHomepageHero(
+/**
+ * Writes a fully self-contained hero section + homepage template (no read/merge of
+ * existing theme files needed — this always creates/overwrites both from scratch),
+ * and uploads the brand logo as a theme asset referenced directly from that section.
+ */
+export async function setThemeLogoAndHero(
   session: Session,
   themeId: number,
-  hero: { heroHeading: string; heroSubheading: string },
+  params: {
+    logoDataUrl: string | null;
+    hero: { heroHeading: string; heroSubheading: string };
+    brandColor: string;
+  },
 ): Promise<void> {
-  const raw = await getAsset(session, themeId, "templates/index.json");
-  const template = JSON.parse(raw);
-  const sections = template.sections ?? {};
+  const client = new shopify.clients.Graphql({ session });
+  const themeGid = `gid://shopify/OnlineStoreTheme/${themeId}`;
 
-  const heroSectionEntry = Object.entries(sections).find(
-    ([, section]) => HERO_SECTION_TYPES.has((section as { type?: string }).type ?? ""),
-  );
-  if (!heroSectionEntry) {
-    throw new Error("Could not find a hero-like section (image-banner/slideshow) in templates/index.json");
-  }
+  const files: { filename: string; body: { type: "TEXT" | "BASE64"; value: string } }[] = [];
 
-  const [, heroSection] = heroSectionEntry as [string, { blocks?: Record<string, { type?: string; settings?: Record<string, unknown> }> }];
-  const blocks = heroSection.blocks ?? {};
-
-  let patched = false;
-  for (const block of Object.values(blocks)) {
-    if (block.type === "heading" && block.settings) {
-      block.settings.heading = hero.heroHeading;
-      patched = true;
-    }
-    if (block.type === "text" && block.settings) {
-      block.settings.text = hero.heroSubheading;
-      patched = true;
+  let logoImgTag = "";
+  if (params.logoDataUrl) {
+    const match = params.logoDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (match) {
+      const extension = match[1].split("/")[1] || "png";
+      const logoFilename = `ai-store-builder-logo.${extension}`;
+      files.push({ filename: `assets/${logoFilename}`, body: { type: "BASE64", value: match[2] } });
+      logoImgTag = `<img src="{{ '${logoFilename}' | asset_url }}" alt="logo" style="max-width:160px;margin-bottom:32px;">`;
     }
   }
 
-  if (!patched) {
-    throw new Error("Hero section had no heading/text blocks to patch");
-  }
+  const heroLiquid = `<div style="background-color:${params.brandColor};color:#fff;text-align:center;padding:96px 24px;">
+  ${logoImgTag}
+  <h1 style="font-size:48px;margin-bottom:16px;">${escapeLiquidText(params.hero.heroHeading)}</h1>
+  <p style="font-size:20px;margin-bottom:32px;">${escapeLiquidText(params.hero.heroSubheading)}</p>
+  <a href="/collections/all" style="display:inline-block;padding:14px 32px;background:#fff;color:#111;text-decoration:none;border-radius:4px;font-weight:600;">Shop now</a>
+</div>
+{% schema %}
+{ "name": "AI Store Builder Hero", "presets": [{ "name": "AI Store Builder Hero" }] }
+{% endschema %}`;
 
-  await putAssetValue(session, themeId, "templates/index.json", JSON.stringify(template));
+  files.push({ filename: "sections/ai-store-builder-hero.liquid", body: { type: "TEXT", value: heroLiquid } });
+
+  const indexTemplate = {
+    sections: { ai_store_builder_hero: { type: "ai-store-builder-hero" } },
+    order: ["ai_store_builder_hero"],
+  };
+  files.push({ filename: "templates/index.json", body: { type: "TEXT", value: JSON.stringify(indexTemplate) } });
+
+  const response = await client.request(THEME_FILES_UPSERT, { variables: { themeId: themeGid, files } });
+  const errors = response.data?.themeFilesUpsert?.userErrors ?? [];
+  if (errors.length > 0) {
+    throw new Error(`themeFilesUpsert failed: ${errors.map((e: { message: string }) => e.message).join("; ")}`);
+  }
 }
 
 export function themeEditorUrl(shop: string, themeId: number): string {

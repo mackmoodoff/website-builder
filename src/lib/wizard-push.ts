@@ -1,7 +1,7 @@
 import type { Session } from "@shopify/shopify-api";
 import { shopify } from "./shopify";
 import { ensurePublicImageUrl } from "./shopify-staged-upload";
-import { createDawnTheme, waitForThemeReady, setThemeLogo, setHomepageHero, themeEditorUrl } from "./shopify-theme-push";
+import { createDawnTheme, waitForThemeReady, setThemeLogoAndHero, themeEditorUrl } from "./shopify-theme-push";
 import type { SitePlan } from "./site-plan";
 
 const PRODUCT_CREATE = `#graphql
@@ -121,23 +121,21 @@ export async function pushWizardToShopify(
     result.theme = { ok: false, error: String(err) };
   }
 
-  // 4. Best-effort: brand logo + homepage hero copy
+  // 4. Best-effort: write a self-contained hero section + homepage template
+  // (brand logo + heading/subheading), via GraphQL themeFilesUpsert.
   if (themeId) {
-    if (wizard.brandLogoDataUrl) {
-      try {
-        await setThemeLogo(session, themeId, wizard.brandLogoDataUrl);
-        result.logo = { ok: true };
-      } catch (err) {
-        result.logo = { ok: false, error: String(err) };
-      }
-    } else {
-      result.logo = { ok: false, error: "No logo was uploaded" };
-    }
-
     try {
-      await setHomepageHero(session, themeId, sitePlan.home);
+      await setThemeLogoAndHero(session, themeId, {
+        logoDataUrl: wizard.brandLogoDataUrl,
+        hero: sitePlan.home,
+        brandColor: wizard.brandColor,
+      });
+      result.logo = wizard.brandLogoDataUrl
+        ? { ok: true }
+        : { ok: false, error: "No logo was uploaded" };
       result.hero = { ok: true };
     } catch (err) {
+      result.logo = { ok: false, error: String(err) };
       result.hero = { ok: false, error: String(err) };
     }
   }
