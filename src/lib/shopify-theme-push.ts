@@ -2,7 +2,9 @@ import type { Session } from "@shopify/shopify-api";
 import { shopify } from "./shopify";
 
 const API_VERSION = "2026-07";
-const DAWN_THEME_ZIP = "https://github.com/Shopify/dawn/archive/refs/heads/main.zip";
+// Use codeload.github.com directly — github.com/.../archive/....zip is a redirect,
+// and Shopify's theme src fetcher doesn't follow it (reports src as empty).
+const DAWN_THEME_ZIP = "https://codeload.github.com/Shopify/dawn/zip/refs/heads/main";
 
 function restUrl(shop: string, path: string): string {
   return `https://${shop}/admin/api/${API_VERSION}${path}`;

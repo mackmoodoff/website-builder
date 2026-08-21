@@ -105,17 +105,17 @@ export default function BuildPage() {
         ))}
       </ul>
 
-      {status?.status === "failed" && (
+      {status?.status === "failed" && !status.sitePlan && (
         <p className="text-sm text-red-600">Build failed: {status.error}</p>
       )}
 
-      {status?.status === "built" && !pushResult && (
+      {status?.sitePlan != null && status.status !== "building" && !pushResult && (
         <button
           onClick={handlePush}
           disabled={pushing}
           className="self-start rounded-md bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
         >
-          {pushing ? "Pushing to Shopify..." : "Push to Shopify"}
+          {pushing ? "Pushing to Shopify..." : status.status === "failed" ? "Retry push to Shopify" : "Push to Shopify"}
         </button>
       )}
 
