@@ -1,5 +1,4 @@
 import type { Session } from "@shopify/shopify-api";
-import { shopify } from "./shopify";
 
 const API_VERSION = "2026-07";
 // Use codeload.github.com directly — github.com/.../archive/....zip is a redirect,
@@ -65,73 +64,11 @@ export async function waitForThemeReady(session: Session, themeId: number, maxAt
   throw new Error("Timed out waiting for the Dawn theme copy to finish processing on Shopify");
 }
 
-const THEME_FILES_UPSERT = `#graphql
-  mutation ThemeFilesUpsert($themeId: ID!, $files: [OnlineStoreThemeFilesUpsertFileInput!]!) {
-    themeFilesUpsert(themeId: $themeId, files: $files) {
-      upsertedThemeFiles { filename }
-      userErrors { field message }
-    }
-  }
-`;
-
-function escapeLiquidText(text: string): string {
-  return text.replace(/\{\{/g, "&#123;&#123;").replace(/\{%/g, "&#123;&#37;");
-}
-
-/**
- * Writes a fully self-contained hero section + homepage template (no read/merge of
- * existing theme files needed — this always creates/overwrites both from scratch),
- * and uploads the brand logo as a theme asset referenced directly from that section.
- */
-export async function setThemeLogoAndHero(
-  session: Session,
-  themeId: number,
-  params: {
-    logoDataUrl: string | null;
-    hero: { heroHeading: string; heroSubheading: string };
-    brandColor: string;
-  },
-): Promise<void> {
-  const client = new shopify.clients.Graphql({ session });
-  const themeGid = `gid://shopify/OnlineStoreTheme/${themeId}`;
-
-  const files: { filename: string; body: { type: "TEXT" | "BASE64"; value: string } }[] = [];
-
-  let logoImgTag = "";
-  if (params.logoDataUrl) {
-    const match = params.logoDataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (match) {
-      const extension = match[1].split("/")[1] || "png";
-      const logoFilename = `ai-store-builder-logo.${extension}`;
-      files.push({ filename: `assets/${logoFilename}`, body: { type: "BASE64", value: match[2] } });
-      logoImgTag = `<img src="{{ '${logoFilename}' | asset_url }}" alt="logo" style="max-width:160px;margin-bottom:32px;">`;
-    }
-  }
-
-  const heroLiquid = `<div style="background-color:${params.brandColor};color:#fff;text-align:center;padding:96px 24px;">
-  ${logoImgTag}
-  <h1 style="font-size:48px;margin-bottom:16px;">${escapeLiquidText(params.hero.heroHeading)}</h1>
-  <p style="font-size:20px;margin-bottom:32px;">${escapeLiquidText(params.hero.heroSubheading)}</p>
-  <a href="/collections/all" style="display:inline-block;padding:14px 32px;background:#fff;color:#111;text-decoration:none;border-radius:4px;font-weight:600;">Shop now</a>
-</div>
-{% schema %}
-{ "name": "AI Store Builder Hero", "presets": [{ "name": "AI Store Builder Hero" }] }
-{% endschema %}`;
-
-  files.push({ filename: "sections/ai-store-builder-hero.liquid", body: { type: "TEXT", value: heroLiquid } });
-
-  const indexTemplate = {
-    sections: { ai_store_builder_hero: { type: "ai-store-builder-hero" } },
-    order: ["ai_store_builder_hero"],
-  };
-  files.push({ filename: "templates/index.json", body: { type: "TEXT", value: JSON.stringify(indexTemplate) } });
-
-  const response = await client.request(THEME_FILES_UPSERT, { variables: { themeId: themeGid, files } });
-  const errors = response.data?.themeFilesUpsert?.userErrors ?? [];
-  if (errors.length > 0) {
-    throw new Error(`themeFilesUpsert failed: ${errors.map((e: { message: string }) => e.message).join("; ")}`);
-  }
-}
+// Note: writing theme code (sections/templates/assets) via themeFilesUpsert or the
+// REST Asset API requires a manual "theme access" exemption from Shopify for
+// standard apps — without it, both are hard-blocked (403/404), not a bug in this
+// code. See README for the exemption request link. Until/unless granted, logo and
+// homepage copy are applied by the merchant in Shopify's own Theme Editor instead.
 
 export function themeEditorUrl(shop: string, themeId: number): string {
   return `https://${shop}/admin/themes/${themeId}/editor`;

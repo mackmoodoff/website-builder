@@ -30,9 +30,9 @@ below.
    competitors, otherwise basic meta-tag/`<img>` scraping — AliExpress and other
    heavily JS-rendered sites will yield limited data since there's no headless
    browser here). The merchant can also generate branded AI images
-   (`POST /api/wizard/[id]/images/generate`, OpenAI `gpt-image-1` via
-   `src/lib/image-gen.ts`) from a creative brief. At least 8 images must be
-   selected (`POST /api/wizard/[id]/images/select`) to continue.
+   (`POST /api/wizard/[id]/images/generate`, KIE AI's `gpt-image-2` async job
+   API via `src/lib/image-gen.ts`) from a creative brief. At least 8 images
+   must be selected (`POST /api/wizard/[id]/images/select`) to continue.
 4. **Confirm competitor** (`/wizard/[id]/confirm`) — shows/edits the main
    competitor link, then starts the build (`POST /api/wizard/[id]/build`).
 5. **Build** (`/wizard/[id]/build`) — runs in the background
@@ -43,11 +43,10 @@ below.
    `GET /api/wizard/[id]/status` for a live progress bar.
 6. **Push** — `POST /api/wizard/[id]/push` (`src/lib/wizard-push.ts`) creates
    a draft product with the selected images (uploaded via Shopify's
-   staged-upload flow, `src/lib/shopify-staged-upload.ts`), creates a new
+   staged-upload flow, `src/lib/shopify-staged-upload.ts`) and a new
    **unpublished** theme copied from Shopify's free Dawn theme
-   (`src/lib/shopify-theme-push.ts`), and best-effort sets the brand logo and
-   homepage hero copy on it. It returns a theme editor preview link — the
-   theme is intentionally left unpublished so the merchant reviews before it
+   (`src/lib/shopify-theme-push.ts`). It returns a theme editor preview link —
+   the theme is intentionally left unpublished so the merchant reviews before it
    goes live.
 
 ### Why not a literal copy
@@ -183,11 +182,13 @@ prisma/schema.prisma           Session, StoreProject, StoreWizard, StoreImage mo
 - **Robust scraping** — no headless browser, so heavily JS-rendered sites
   (AliExpress, many storefronts) yield limited reference data. A future
   improvement would add Playwright-based rendering.
-- **Theme customization depth** — the push step patches Dawn's logo setting
-  and homepage hero blocks by best-effort JSON key matching; each step is
-  wrapped individually so one mismatch (e.g. a Dawn version with different
-  section/block IDs) doesn't fail the whole push, but deeper section-by-section
-  customization isn't implemented.
+- **No automated theme-code writes** — Shopify blocks both the REST Asset API
+  and the GraphQL `themeFilesUpsert` mutation for standard apps unless Shopify
+  grants a manual "theme access" exemption (apply via the link in the error
+  message this app surfaces if you try). Until/unless that's granted, the push
+  step creates the draft product + unpublished Dawn theme copy, and the UI
+  shows the merchant the exact logo/heading/subheading to paste into Shopify's
+  own Theme Editor (~1 minute, manual).
 - **Multi-tenant auth for the builder itself** — anyone who knows a shop
   domain and completes Shopify OAuth can run the wizard for that shop; add
   proper user accounts before opening this up publicly.

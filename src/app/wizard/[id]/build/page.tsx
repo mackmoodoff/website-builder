@@ -23,8 +23,8 @@ type PushResult = {
   product: { ok: boolean; productId?: string; error?: string };
   media: { attempted: number; uploaded: number; errors: string[] };
   theme: { ok: boolean; themeId?: number; previewUrl?: string; error?: string };
-  logo: { ok: boolean; error?: string };
-  hero: { ok: boolean; error?: string };
+  logo: { manual: true; hasLogo: boolean };
+  hero: { manual: true; heading: string; subheading: string };
 };
 
 const TOTAL_STEPS = 4; // review, home_copy, product_copy, cart_checkout
@@ -130,18 +130,33 @@ export default function BuildPage() {
             {pushResult.media.errors.length > 0 && ` (${pushResult.media.errors.length} skipped)`}
           </p>
           <p>Theme: {pushResult.theme.ok ? "created (unpublished draft)" : `failed — ${pushResult.theme.error}`}</p>
-          <p>Logo: {pushResult.logo.ok ? "set" : `not set — ${pushResult.logo.error}`}</p>
-          <p>Homepage hero copy: {pushResult.hero.ok ? "set" : `not set — ${pushResult.hero.error}`}</p>
           {pushResult.theme.previewUrl && (
             <a
               href={pushResult.theme.previewUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 self-start rounded-md bg-black px-4 py-2 font-medium text-white"
+              className="mt-1 self-start rounded-md bg-black px-4 py-2 font-medium text-white"
             >
               Open theme editor
             </a>
           )}
+        </section>
+      )}
+
+      {pushResult && pushResult.theme.ok && (
+        <section className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-medium">Finish branding manually in the Theme Editor</p>
+          <p>
+            Shopify blocks apps from writing theme code automatically unless granted a
+            special exemption — so set these yourself in the theme customizer (takes ~1 minute):
+          </p>
+          {pushResult.logo.hasLogo && <p>1. Header → Logo: upload the brand logo you provided.</p>}
+          <p>
+            {pushResult.logo.hasLogo ? "2" : "1"}. Homepage hero heading: <strong>{pushResult.hero.heading}</strong>
+          </p>
+          <p>
+            {pushResult.logo.hasLogo ? "3" : "2"}. Homepage hero subheading: <strong>{pushResult.hero.subheading}</strong>
+          </p>
         </section>
       )}
     </main>

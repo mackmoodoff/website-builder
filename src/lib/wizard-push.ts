@@ -1,7 +1,7 @@
 import type { Session } from "@shopify/shopify-api";
 import { shopify } from "./shopify";
 import { ensurePublicImageUrl } from "./shopify-staged-upload";
-import { createDawnTheme, waitForThemeReady, setThemeLogoAndHero, themeEditorUrl } from "./shopify-theme-push";
+import { createDawnTheme, waitForThemeReady, themeEditorUrl } from "./shopify-theme-push";
 import type { SitePlan } from "./site-plan";
 
 const PRODUCT_CREATE = `#graphql
@@ -26,8 +26,11 @@ export type WizardPushResult = {
   product: { ok: boolean; productId?: string; error?: string };
   media: { attempted: number; uploaded: number; errors: string[] };
   theme: { ok: boolean; themeId?: number; previewUrl?: string; error?: string };
-  logo: { ok: boolean; error?: string };
-  hero: { ok: boolean; error?: string };
+  // Shopify blocks automated theme-code writes (themeFilesUpsert/Asset API) for
+  // standard apps without a manual exemption grant — so branding is a manual
+  // step in the Theme Editor. These carry the exact copy to paste in there.
+  logo: { manual: true; hasLogo: boolean };
+  hero: { manual: true; heading: string; subheading: string };
 };
 
 export async function pushWizardToShopify(
@@ -47,8 +50,8 @@ export async function pushWizardToShopify(
     product: { ok: false },
     media: { attempted: selectedImageUrls.length, uploaded: 0, errors: [] },
     theme: { ok: false },
-    logo: { ok: false },
-    hero: { ok: false },
+    logo: { manual: true, hasLogo: Boolean(wizard.brandLogoDataUrl) },
+    hero: { manual: true, heading: sitePlan.home.heroHeading, subheading: sitePlan.home.heroSubheading },
   };
 
   // 1. Create the draft product
@@ -119,25 +122,6 @@ export async function pushWizardToShopify(
     result.theme = { ok: true, themeId, previewUrl: themeEditorUrl(session.shop, themeId) };
   } catch (err) {
     result.theme = { ok: false, error: String(err) };
-  }
-
-  // 4. Best-effort: write a self-contained hero section + homepage template
-  // (brand logo + heading/subheading), via GraphQL themeFilesUpsert.
-  if (themeId) {
-    try {
-      await setThemeLogoAndHero(session, themeId, {
-        logoDataUrl: wizard.brandLogoDataUrl,
-        hero: sitePlan.home,
-        brandColor: wizard.brandColor,
-      });
-      result.logo = wizard.brandLogoDataUrl
-        ? { ok: true }
-        : { ok: false, error: "No logo was uploaded" };
-      result.hero = { ok: true };
-    } catch (err) {
-      result.logo = { ok: false, error: String(err) };
-      result.hero = { ok: false, error: String(err) };
-    }
   }
 
   return result;
