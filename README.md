@@ -83,8 +83,9 @@ colors) and the thank-you message are customizable, which is why
    newer managed installation.
 5. **Embed app in Shopify admin**: disabled — this app runs standalone, not
    inside the admin iframe (no App Bridge yet).
-6. **Scopes**: `write_products,read_products,write_content,read_content,write_online_store_pages,read_online_store_pages,write_themes,read_themes`
-   (the last two are required for the `/wizard` push step to create a theme).
+6. **Scopes**: `write_products,read_products,write_content,read_content,write_online_store_pages,read_online_store_pages,write_themes,read_themes,write_publications,read_publications`
+   (`write_themes`/`read_themes` are required to create a theme; `write_publications`/`read_publications`
+   are required to publish products to the Online Store sales channel).
 7. Copy the **Client ID** (API key) and **Client secret** (API secret) from
    the app's "Client credentials" section.
 
