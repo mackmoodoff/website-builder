@@ -29,7 +29,6 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
         productName: wizard.productName,
         brandName: wizard.brandName,
         brandColor: wizard.brandColor,
-        brandLogoDataUrl: wizard.brandLogoDataUrl,
       },
       sitePlan,
       selectedImageUrls,

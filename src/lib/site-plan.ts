@@ -14,10 +14,17 @@ function getClient(): Anthropic {
 export const homeSectionSchema = z.object({
   heroHeading: z.string(),
   heroSubheading: z.string(),
+  heroCta: z.string(),
   sections: z
     .array(z.object({ heading: z.string(), body: z.string() }))
     .min(3)
     .max(6),
+  testimonials: z
+    .array(z.object({ name: z.string(), quote: z.string() }))
+    .min(2)
+    .max(3),
+  finalCtaHeading: z.string(),
+  finalCtaBody: z.string(),
 });
 
 export const productPageSchema = z.object({
@@ -81,9 +88,18 @@ market focus (what they sell and how they frame it), not a copy — write 100% o
 Never reuse the competitor's exact wording. Write everything in {LANGUAGE}.`;
 
 export async function generateHomeSection(ctx: BuildContext) {
-  const system = `You are an e-commerce copywriter building a Shopify homepage.
+  const system = `You are a direct-response e-commerce copywriter building a high-converting Shopify homepage.
 ${CONTEXT_NOTE.replace("{LANGUAGE}", ctx.language)}
-Respond with ONLY a JSON object: { "heroHeading": string, "heroSubheading": string, "sections": [{"heading": string, "body": string}] (3-6 items) }`;
+Respond with ONLY a JSON object:
+{
+  "heroHeading": string,
+  "heroSubheading": string,
+  "heroCta": string (short button label, e.g. "Shop Now"),
+  "sections": [{"heading": string, "body": string}] (3-6 feature/benefit blocks),
+  "testimonials": [{"name": string (a plausible customer first name + initial), "quote": string (1-2 sentences)}] (2-3 items),
+  "finalCtaHeading": string (closing call-to-action heading),
+  "finalCtaBody": string (1 sentence)
+}`;
   const prompt = `Brand: ${ctx.brandName}
 Product: ${ctx.productName} — ${ctx.productDescription}
 Brand accent color: ${ctx.brandColor}

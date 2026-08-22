@@ -21,12 +21,10 @@ type StatusResponse = {
 };
 
 type PushResult = {
-  product: { ok: boolean; productId?: string; error?: string };
+  product: { ok: boolean; productId?: string; error?: string; publishedToOnlineStore: boolean };
   media: { attempted: number; uploaded: number; errors: string[] };
   theme: { ok: boolean; themeId?: string; previewUrl?: string; error?: string };
-  themeContent:
-    | { mode: "auto" }
-    | { mode: "manual"; heading: string; subheading: string; hasLogo: boolean; reason: string };
+  themeContent: { mode: "auto" } | { mode: "manual"; heading: string; subheading: string; reason: string };
 };
 
 const TOTAL_STEPS = 4; // review, home_copy, product_copy, cart_checkout
@@ -126,7 +124,14 @@ export default function BuildPage() {
       {pushResult && (
         <section className="flex flex-col gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
           <p className="font-medium">Pushed to Shopify</p>
-          <p>Product: {pushResult.product.ok ? "created (draft)" : `failed — ${pushResult.product.error}`}</p>
+          <p>
+            Product:{" "}
+            {pushResult.product.ok
+              ? pushResult.product.publishedToOnlineStore
+                ? "active & live in store"
+                : "active (not yet visible — publish to Online Store channel manually)"
+              : `failed — ${pushResult.product.error}`}
+          </p>
           <p>
             Images: {pushResult.media.uploaded}/{pushResult.media.attempted} uploaded
             {pushResult.media.errors.length > 0 && ` (${pushResult.media.errors.length} skipped)`}
@@ -154,8 +159,12 @@ export default function BuildPage() {
 
       {pushResult && pushResult.theme.ok && pushResult.themeContent.mode === "auto" && (
         <section className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-          <p className="font-medium">Branding applied automatically</p>
-          <p>Logo, homepage hero heading/subheading, and brand color were pushed via the Shopify CLI.</p>
+          <p className="font-medium">Custom theme applied automatically</p>
+          <p>
+            A fully custom-authored header, footer, and homepage (hero, features, testimonials,
+            closing CTA) were pushed via the Shopify CLI — no default Dawn sections. Add your
+            brand name/logo in the Theme Editor whenever you like.
+          </p>
         </section>
       )}
 
@@ -171,12 +180,7 @@ export default function BuildPage() {
           </div>
 
           <div>
-            <p className="font-semibold">Header</p>
-            {pushResult.themeContent.hasLogo && <p>• Logo: upload the brand logo you provided.</p>}
-          </div>
-
-          <div>
-            <p className="font-semibold">Homepage — Image banner section</p>
+            <p className="font-semibold">Homepage — hero</p>
             <p>
               • Heading: <strong>{pushResult.themeContent.heading}</strong>
             </p>

@@ -24,17 +24,31 @@ const PRODUCT_CREATE_MEDIA = `#graphql
   }
 `;
 
+const PUBLICATIONS_QUERY = `#graphql
+  query Publications {
+    publications(first: 10) {
+      nodes { id name }
+    }
+  }
+`;
+
+const PUBLISH_TO_CHANNEL = `#graphql
+  mutation PublishablePublish($id: ID!, $input: [PublicationInput!]!) {
+    publishablePublish(id: $id, input: $input) {
+      userErrors { field message }
+    }
+  }
+`;
+
 export type WizardPushResult = {
-  product: { ok: boolean; productId?: string; error?: string };
+  product: { ok: boolean; productId?: string; error?: string; publishedToOnlineStore: boolean };
   media: { attempted: number; uploaded: number; errors: string[] };
   theme: { ok: boolean; themeId?: string; previewUrl?: string; error?: string };
-  // "auto": pushed via Shopify CLI (Theme Access token) — logo/hero copy is
-  // already live in the theme. "manual": CLI push wasn't available/configured,
-  // fell back to a blank Dawn copy via the Admin API — these carry the exact
-  // copy for the merchant to paste into the Theme Editor themselves.
-  themeContent:
-    | { mode: "auto" }
-    | { mode: "manual"; heading: string; subheading: string; hasLogo: boolean; reason: string };
+  // "auto": pushed via Shopify CLI (Theme Access token) — header/footer/homepage
+  // are already live. "manual": CLI push wasn't available/configured, fell back
+  // to a blank Dawn copy via the Admin API — these carry the exact copy for the
+  // merchant to paste into the Theme Editor themselves.
+  themeContent: { mode: "auto" } | { mode: "manual"; heading: string; subheading: string; reason: string };
 };
 
 export async function pushWizardToShopify(
@@ -43,7 +57,6 @@ export async function pushWizardToShopify(
     productName: string;
     brandName: string;
     brandColor: string;
-    brandLogoDataUrl: string | null;
   },
   sitePlan: SitePlan,
   selectedImageUrls: string[],
@@ -51,13 +64,13 @@ export async function pushWizardToShopify(
   const client = new shopify.clients.Graphql({ session });
 
   const result: WizardPushResult = {
-    product: { ok: false },
+    product: { ok: false, publishedToOnlineStore: false },
     media: { attempted: selectedImageUrls.length, uploaded: 0, errors: [] },
     theme: { ok: false },
-    themeContent: { mode: "manual", heading: "", subheading: "", hasLogo: false, reason: "not attempted" },
+    themeContent: { mode: "manual", heading: "", subheading: "", reason: "not attempted" },
   };
 
-  // 1. Create the draft product
+  // 1. Create the product as Active
   const descriptionHtml = [
     `<p>${sitePlan.productPage.headline}</p>`,
     "<ul>",
@@ -72,19 +85,39 @@ export async function pushWizardToShopify(
           title: wizard.productName,
           descriptionHtml,
           tags: [wizard.brandName],
-          status: "DRAFT",
+          status: "ACTIVE",
         },
       },
     });
     const errors = response.data?.productCreate?.userErrors ?? [];
     const productId = response.data?.productCreate?.product?.id;
     if (errors.length > 0 || !productId) {
-      result.product = { ok: false, error: errors.map((e: { message: string }) => e.message).join("; ") };
+      result.product = { ok: false, error: errors.map((e: { message: string }) => e.message).join("; "), publishedToOnlineStore: false };
     } else {
-      result.product = { ok: true, productId };
+      result.product = { ok: true, productId, publishedToOnlineStore: false };
     }
   } catch (err) {
-    result.product = { ok: false, error: String(err) };
+    result.product = { ok: false, error: String(err), publishedToOnlineStore: false };
+  }
+
+  // 1b. Publish it to the Online Store sales channel so it's actually visible
+  // in the storefront — an Active product isn't listed anywhere by default.
+  if (result.product.ok && result.product.productId) {
+    try {
+      const pubResponse = await client.request(PUBLICATIONS_QUERY);
+      const onlineStore = (pubResponse.data?.publications?.nodes ?? []).find(
+        (p: { id: string; name: string }) => p.name === "Online Store",
+      );
+      if (onlineStore) {
+        const publishResponse = await client.request(PUBLISH_TO_CHANNEL, {
+          variables: { id: result.product.productId, input: [{ publicationId: onlineStore.id }] },
+        });
+        const publishErrors = publishResponse.data?.publishablePublish?.userErrors ?? [];
+        result.product.publishedToOnlineStore = publishErrors.length === 0;
+      }
+    } catch {
+      result.product.publishedToOnlineStore = false;
+    }
   }
 
   // 2. Attach selected images as product media (best-effort per image)
@@ -117,13 +150,15 @@ export async function pushWizardToShopify(
     }
   }
 
-  // 3. Create an unpublished Dawn theme copy via the (reliable) Admin API, then
-  // try to push our customized local content (logo, hero section, homepage
-  // template) onto it via the Shopify CLI — this bypasses the Admin API's
-  // theme-file write restriction, since the CLI acts as the merchant's own
-  // theme-editing session rather than a third-party app. If the CLI push isn't
-  // available/configured, the theme still exists — just blank — and the
-  // merchant gets paste-in instructions instead.
+  // 3. Create an unpublished Dawn-based theme copy via the (reliable) Admin API,
+  // then push a fully custom-authored header, footer, and homepage (written from
+  // the AI site plan, not Dawn's default sections) onto it via the Shopify CLI —
+  // this bypasses the Admin API's theme-file write restriction, since the CLI
+  // acts as the merchant's own theme-editing session rather than a third-party
+  // app. If the CLI push isn't available/configured, the theme still exists —
+  // just the blank Dawn base — and the merchant gets paste-in instructions
+  // instead. Product page / cart / checkout stay Shopify's own mechanics
+  // (add-to-cart, checkout) — no theme, custom or otherwise, replaces those.
   let themeId: number | undefined;
   try {
     themeId = await createDawnTheme(session, `${wizard.brandName} — AI Draft`);
@@ -137,11 +172,7 @@ export async function pushWizardToShopify(
     let workDir: string | undefined;
     try {
       workDir = await createDawnWorkingCopy();
-      await injectStoreContent(workDir, {
-        logoDataUrl: wizard.brandLogoDataUrl,
-        hero: sitePlan.home,
-        brandColor: wizard.brandColor,
-      });
+      await injectStoreContent(workDir, { home: sitePlan.home, brandColor: wizard.brandColor });
       const cliResult = await pushThemeViaCli({ shop: session.shop, path: workDir, themeId });
       result.theme.previewUrl = cliResult.editorUrl ?? result.theme.previewUrl;
       result.themeContent = { mode: "auto" };
@@ -150,7 +181,6 @@ export async function pushWizardToShopify(
         mode: "manual",
         heading: sitePlan.home.heroHeading,
         subheading: sitePlan.home.heroSubheading,
-        hasLogo: Boolean(wizard.brandLogoDataUrl),
         reason: String(cliErr),
       };
     } finally {
