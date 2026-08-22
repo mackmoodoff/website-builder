@@ -145,6 +145,13 @@ export default function BuildPage() {
         </section>
       )}
 
+      {pushResult && pushResult.themeContent.mode === "manual" && (
+        <section className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-950">
+          <p className="font-medium">Shopify CLI push failed</p>
+          <p className="whitespace-pre-wrap break-words text-xs">{pushResult.themeContent.reason}</p>
+        </section>
+      )}
+
       {pushResult && pushResult.theme.ok && pushResult.themeContent.mode === "auto" && (
         <section className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
           <p className="font-medium">Branding applied automatically</p>
