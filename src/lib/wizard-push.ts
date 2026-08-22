@@ -41,7 +41,7 @@ const PUBLISH_TO_CHANNEL = `#graphql
 `;
 
 export type WizardPushResult = {
-  product: { ok: boolean; productId?: string; error?: string; publishedToOnlineStore: boolean };
+  product: { ok: boolean; productId?: string; error?: string; publishedToOnlineStore: boolean; publishError?: string };
   media: { attempted: number; uploaded: number; errors: string[] };
   theme: { ok: boolean; themeId?: string; previewUrl?: string; error?: string };
   // "auto": pushed via Shopify CLI (Theme Access token) — header/footer/homepage
@@ -105,18 +105,22 @@ export async function pushWizardToShopify(
   if (result.product.ok && result.product.productId) {
     try {
       const pubResponse = await client.request(PUBLICATIONS_QUERY);
-      const onlineStore = (pubResponse.data?.publications?.nodes ?? []).find(
-        (p: { id: string; name: string }) => p.name === "Online Store",
-      );
-      if (onlineStore) {
+      const publications = pubResponse.data?.publications?.nodes ?? [];
+      const onlineStore = publications.find((p: { id: string; name: string }) => p.name === "Online Store");
+      if (!onlineStore) {
+        result.product.publishError = `No "Online Store" publication found. Available: ${publications.map((p: { name: string }) => p.name).join(", ") || "none"}`;
+      } else {
         const publishResponse = await client.request(PUBLISH_TO_CHANNEL, {
           variables: { id: result.product.productId, input: [{ publicationId: onlineStore.id }] },
         });
         const publishErrors = publishResponse.data?.publishablePublish?.userErrors ?? [];
         result.product.publishedToOnlineStore = publishErrors.length === 0;
+        if (publishErrors.length > 0) {
+          result.product.publishError = publishErrors.map((e: { message: string }) => e.message).join("; ");
+        }
       }
-    } catch {
-      result.product.publishedToOnlineStore = false;
+    } catch (err) {
+      result.product.publishError = String(err);
     }
   }
 

@@ -21,7 +21,7 @@ type StatusResponse = {
 };
 
 type PushResult = {
-  product: { ok: boolean; productId?: string; error?: string; publishedToOnlineStore: boolean };
+  product: { ok: boolean; productId?: string; error?: string; publishedToOnlineStore: boolean; publishError?: string };
   media: { attempted: number; uploaded: number; errors: string[] };
   theme: { ok: boolean; themeId?: string; previewUrl?: string; error?: string };
   themeContent: { mode: "auto" } | { mode: "manual"; heading: string; subheading: string; reason: string };
@@ -132,6 +132,9 @@ export default function BuildPage() {
                 : "active (not yet visible — publish to Online Store channel manually)"
               : `failed — ${pushResult.product.error}`}
           </p>
+          {pushResult.product.ok && !pushResult.product.publishedToOnlineStore && pushResult.product.publishError && (
+            <p className="text-xs opacity-80">Publish error: {pushResult.product.publishError}</p>
+          )}
           <p>
             Images: {pushResult.media.uploaded}/{pushResult.media.attempted} uploaded
             {pushResult.media.errors.length > 0 && ` (${pushResult.media.errors.length} skipped)`}
