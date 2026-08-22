@@ -17,7 +17,7 @@ export type CliPushResult = {
  * theme code without a manual exemption; the CLI (acting as the merchant's own
  * theme-editing session) is not subject to that restriction.
  */
-export async function pushThemeViaCli(params: { shop: string; path: string }): Promise<CliPushResult> {
+export async function pushThemeViaCli(params: { shop: string; path: string; themeId: number }): Promise<CliPushResult> {
   const password = process.env.SHOPIFY_THEME_ACCESS_TOKEN;
   if (!password) {
     throw new Error(
@@ -26,6 +26,9 @@ export async function pushThemeViaCli(params: { shop: string; path: string }): P
     );
   }
 
+  // Push to an already-created (existing) theme id — avoids "shopify theme push
+  // --unpublished" needing an interactive prompt to confirm creating a new one,
+  // which fails headlessly with "Flag not specified: --theme".
   const args = [
     "--yes",
     "@shopify/cli",
@@ -37,7 +40,8 @@ export async function pushThemeViaCli(params: { shop: string; path: string }): P
     password,
     "--path",
     params.path,
-    "--unpublished",
+    "--theme",
+    String(params.themeId),
   ];
 
   let stdout = "";
@@ -64,7 +68,7 @@ export async function pushThemeViaCli(params: { shop: string; path: string }): P
   const previewMatch = rawOutput.match(/https:\/\/[^\s]*preview_theme_id=\d+[^\s]*/);
 
   return {
-    themeId: editorMatch?.[1],
+    themeId: editorMatch?.[1] ?? String(params.themeId),
     editorUrl: editorUrlMatch?.[0],
     previewUrl: previewMatch?.[0],
     rawOutput,

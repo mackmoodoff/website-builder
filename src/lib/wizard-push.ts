@@ -117,44 +117,45 @@ export async function pushWizardToShopify(
     }
   }
 
-  // 3. Build a customized Dawn theme locally (logo baked in, custom hero section,
-  // homepage template) and push it to Shopify via the CLI — this bypasses the
-  // Admin API's theme-file write restriction entirely, since the CLI acts as the
-  // merchant's own theme-editing session rather than a third-party app.
-  let workDir: string | undefined;
+  // 3. Create an unpublished Dawn theme copy via the (reliable) Admin API, then
+  // try to push our customized local content (logo, hero section, homepage
+  // template) onto it via the Shopify CLI — this bypasses the Admin API's
+  // theme-file write restriction, since the CLI acts as the merchant's own
+  // theme-editing session rather than a third-party app. If the CLI push isn't
+  // available/configured, the theme still exists — just blank — and the
+  // merchant gets paste-in instructions instead.
+  let themeId: number | undefined;
   try {
-    workDir = await createDawnWorkingCopy();
-    await injectStoreContent(workDir, {
-      logoDataUrl: wizard.brandLogoDataUrl,
-      hero: sitePlan.home,
-      brandColor: wizard.brandColor,
-    });
-    const cliResult = await pushThemeViaCli({ shop: session.shop, path: workDir });
-    result.theme = {
-      ok: true,
-      themeId: cliResult.themeId,
-      previewUrl: cliResult.editorUrl ?? cliResult.previewUrl,
-    };
-    result.themeContent = { mode: "auto" };
-  } catch (cliErr) {
-    // Fall back: blank Dawn copy via the Admin API (always allowed) + manual
-    // paste-in instructions for the content the CLI path would have applied.
+    themeId = await createDawnTheme(session, `${wizard.brandName} — AI Draft`);
+    await waitForThemeReady(session, themeId);
+    result.theme = { ok: true, themeId: String(themeId), previewUrl: themeEditorUrl(session.shop, themeId) };
+  } catch (err) {
+    result.theme = { ok: false, error: String(err) };
+  }
+
+  if (themeId) {
+    let workDir: string | undefined;
     try {
-      const themeId = await createDawnTheme(session, `${wizard.brandName} — AI Draft`);
-      await waitForThemeReady(session, themeId);
-      result.theme = { ok: true, themeId: String(themeId), previewUrl: themeEditorUrl(session.shop, themeId) };
-    } catch (err) {
-      result.theme = { ok: false, error: String(err) };
+      workDir = await createDawnWorkingCopy();
+      await injectStoreContent(workDir, {
+        logoDataUrl: wizard.brandLogoDataUrl,
+        hero: sitePlan.home,
+        brandColor: wizard.brandColor,
+      });
+      const cliResult = await pushThemeViaCli({ shop: session.shop, path: workDir, themeId });
+      result.theme.previewUrl = cliResult.editorUrl ?? result.theme.previewUrl;
+      result.themeContent = { mode: "auto" };
+    } catch (cliErr) {
+      result.themeContent = {
+        mode: "manual",
+        heading: sitePlan.home.heroHeading,
+        subheading: sitePlan.home.heroSubheading,
+        hasLogo: Boolean(wizard.brandLogoDataUrl),
+        reason: String(cliErr),
+      };
+    } finally {
+      if (workDir) await cleanupWorkingCopy(workDir);
     }
-    result.themeContent = {
-      mode: "manual",
-      heading: sitePlan.home.heroHeading,
-      subheading: sitePlan.home.heroSubheading,
-      hasLogo: Boolean(wizard.brandLogoDataUrl),
-      reason: String(cliErr),
-    };
-  } finally {
-    if (workDir) await cleanupWorkingCopy(workDir);
   }
 
   return result;
