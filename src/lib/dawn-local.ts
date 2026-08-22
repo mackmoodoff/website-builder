@@ -67,29 +67,43 @@ function esc(text: string): string {
     .replace(/\{%/g, "&#123;&#37;");
 }
 
-function buildHeaderLiquid(brandColor: string): string {
-  return `<header style="background:${brandColor};color:#fff;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
-  <a href="{{ routes.root_url }}" style="color:#fff;font-size:22px;font-weight:700;text-decoration:none;letter-spacing:0.02em;">{{ shop.name }}</a>
+const NEUTRAL_BG = "#faf7f2";
+const INK = "#2a2420";
+
+function tint(brandColor: string, pct: number, base = "#ffffff"): string {
+  return `color-mix(in srgb, ${brandColor} ${pct}%, ${base})`;
+}
+
+function buildHeaderLiquid(brandColor: string, announcement: string): string {
+  return `<div style="background:${INK};color:#fff;text-align:center;padding:8px 16px;font-size:13px;letter-spacing:0.02em;">
+  ${esc(announcement)}
+</div>
+<header style="background:${NEUTRAL_BG};color:${INK};padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;border-bottom:1px solid rgba(0,0,0,0.06);">
+  <a href="{{ routes.root_url }}" style="color:${INK};font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;text-decoration:none;letter-spacing:0.01em;">{{ shop.name }}</a>
   <nav style="display:flex;gap:24px;flex-wrap:wrap;">
     {% for link in linklists.main-menu.links %}
-      <a href="{{ link.url }}" style="color:#fff;text-decoration:none;font-size:15px;">{{ link.title }}</a>
+      <a href="{{ link.url }}" style="color:${INK};text-decoration:none;font-size:14px;">{{ link.title }}</a>
     {% endfor %}
   </nav>
-  <a href="{{ routes.cart_url }}" style="color:#fff;text-decoration:none;font-size:15px;">Cart ({{ cart.item_count }})</a>
+  <a href="{{ routes.cart_url }}" style="color:${INK};text-decoration:none;font-size:14px;">Cart ({{ cart.item_count }})</a>
 </header>
 {% schema %}
 { "name": "AI Store Builder Header" }
 {% endschema %}`;
 }
 
-function buildFooterLiquid(): string {
-  return `<footer style="background:#111111;color:#eeeeee;padding:56px 24px;text-align:center;">
-  <p style="font-size:18px;font-weight:600;margin-bottom:12px;">{{ shop.name }}</p>
-  <nav style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
+function buildFooterLiquid(brandColor: string): string {
+  return `<footer style="background:${INK};color:#eeeeee;padding:56px 24px;text-align:center;">
+  <p style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:20px;margin-bottom:16px;">{{ shop.name }}</p>
+  <nav style="display:flex;justify-content:center;gap:20px;margin-bottom:24px;flex-wrap:wrap;">
     {% for link in linklists.footer.links %}
       <a href="{{ link.url }}" style="color:#cccccc;text-decoration:none;font-size:14px;">{{ link.title }}</a>
     {% endfor %}
   </nav>
+  <div style="max-width:420px;margin:0 auto 24px;display:flex;gap:8px;">
+    <input type="email" placeholder="Email address" style="flex:1;padding:12px 14px;border-radius:6px;border:none;font-size:14px;">
+    <span style="display:inline-block;padding:12px 22px;background:${brandColor};color:#fff;border-radius:6px;font-weight:600;font-size:14px;white-space:nowrap;">Subscribe</span>
+  </div>
   <p style="font-size:13px;color:#888888;">&copy; {{ "now" | date: "%Y" }} {{ shop.name }}. All rights reserved.</p>
 </footer>
 {% schema %}
@@ -97,29 +111,60 @@ function buildFooterLiquid(): string {
 {% endschema %}`;
 }
 
-function buildHomeLiquid(hero: SitePlan["home"], brandColor: string): string {
+function buildHomeLiquid(
+  hero: SitePlan["home"],
+  brandColor: string,
+  brandName: string,
+  trustBadges: string[],
+): string {
+  const heroTint = tint(brandColor, 10, NEUTRAL_BG);
+  const badgeBorder = tint(brandColor, 35, "#ffffff");
+
+  const checklist = trustBadges
+    .slice(0, 3)
+    .map(
+      (b) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:${INK};">
+      <span style="color:${brandColor};font-weight:700;">&#10003;</span> ${esc(b)}
+    </span>`,
+    )
+    .join("\n      ");
+
   const featureBlocks = hero.sections
     .map(
       (s) => `    <div style="text-align:center;">
-      <h3 style="font-size:20px;margin-bottom:12px;">${esc(s.heading)}</h3>
-      <p style="color:#555555;line-height:1.6;">${esc(s.body)}</p>
+      <h3 style="font-size:19px;margin-bottom:10px;color:${INK};">${esc(s.heading)}</h3>
+      <p style="color:#5a5248;line-height:1.6;">${esc(s.body)}</p>
     </div>`,
+    )
+    .join("\n");
+
+  const comparisonRows = trustBadges
+    .map(
+      (b) => `    <tr>
+      <td style="padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);color:${INK};">${esc(b)}</td>
+      <td style="padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);text-align:center;background:${tint(brandColor, 12, NEUTRAL_BG)};color:${brandColor};font-weight:700;">&#10003;</td>
+      <td style="padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);text-align:center;color:#b5aca0;">&#10005;</td>
+    </tr>`,
     )
     .join("\n");
 
   const testimonialBlocks = hero.testimonials
     .map(
-      (t) => `    <div style="background:#ffffff;padding:28px;border-radius:8px;">
-      <p style="font-style:italic;color:#333333;margin-bottom:16px;">&ldquo;${esc(t.quote)}&rdquo;</p>
+      (t) => `    <div style="background:#ffffff;padding:28px;border-radius:10px;">
+      <p style="font-style:italic;color:#3a342c;margin-bottom:16px;">&ldquo;${esc(t.quote)}&rdquo;</p>
       <p style="font-weight:600;color:${brandColor};">&mdash; ${esc(t.name)}</p>
     </div>`,
     )
     .join("\n");
 
-  return `<section style="background:${brandColor};color:#fff;text-align:center;padding:120px 24px;">
-  <h1 style="font-size:52px;margin-bottom:20px;font-weight:800;line-height:1.15;">${esc(hero.heroHeading)}</h1>
-  <p style="font-size:22px;max-width:640px;margin:0 auto 36px;opacity:0.95;">${esc(hero.heroSubheading)}</p>
-  <a href="/collections/all" style="display:inline-block;padding:16px 40px;background:#fff;color:#111;text-decoration:none;border-radius:6px;font-weight:700;font-size:16px;">${esc(hero.heroCta)}</a>
+  return `<section style="background:${NEUTRAL_BG};background:${heroTint};padding:100px 24px;text-align:center;">
+  <span style="display:inline-block;padding:6px 18px;border-radius:999px;background:#fff;border:1px solid ${badgeBorder};color:${brandColor};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:24px;">${esc(brandName)}</span>
+  <h1 style="font-size:48px;margin-bottom:18px;font-weight:800;line-height:1.15;color:${INK};">${esc(hero.heroHeading)}</h1>
+  <p style="font-size:20px;max-width:640px;margin:0 auto 28px;color:#5a5248;font-style:italic;">${esc(hero.heroSubheading)}</p>
+  <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:32px;">
+      ${checklist}
+  </div>
+  <a href="/collections/all" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:16px;">${esc(hero.heroCta)}</a>
 </section>
 
 <section style="padding:80px 24px;max-width:1100px;margin:0 auto;">
@@ -128,15 +173,33 @@ ${featureBlocks}
   </div>
 </section>
 
-<section style="background:#f7f7f7;padding:80px 24px;">
+<section style="padding:80px 24px;">
+  <div style="max-width:720px;margin:0 auto;">
+    <h2 style="text-align:center;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:32px;margin-bottom:32px;color:${INK};">${esc(brandName)} Difference</h2>
+    <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;">
+      <thead>
+        <tr>
+          <td style="padding:14px 16px;font-weight:700;color:${INK};"></td>
+          <td style="padding:14px 16px;text-align:center;font-weight:700;background:${brandColor};color:#fff;">${esc(brandName)}</td>
+          <td style="padding:14px 16px;text-align:center;font-weight:700;color:#8a8175;">Others</td>
+        </tr>
+      </thead>
+      <tbody>
+${comparisonRows}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section style="background:${NEUTRAL_BG};padding:80px 24px;">
   <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:32px;">
 ${testimonialBlocks}
   </div>
 </section>
 
 <section style="text-align:center;padding:100px 24px;">
-  <h2 style="font-size:36px;margin-bottom:16px;">${esc(hero.finalCtaHeading)}</h2>
-  <p style="font-size:18px;color:#555555;margin-bottom:32px;">${esc(hero.finalCtaBody)}</p>
+  <h2 style="font-size:34px;margin-bottom:16px;color:${INK};">${esc(hero.finalCtaHeading)}</h2>
+  <p style="font-size:18px;color:#5a5248;margin-bottom:32px;">${esc(hero.finalCtaBody)}</p>
   <a href="/collections/all" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;">${esc(hero.heroCta)}</a>
 </section>
 {% schema %}
@@ -146,13 +209,14 @@ ${testimonialBlocks}
 
 export async function injectStoreContent(
   dir: string,
-  params: { home: SitePlan["home"]; brandColor: string },
+  params: { brandName: string; brandColor: string; home: SitePlan["home"]; trustBadges: string[] },
 ): Promise<void> {
-  await fs.writeFile(path.join(dir, "sections", "header.liquid"), buildHeaderLiquid(params.brandColor));
-  await fs.writeFile(path.join(dir, "sections", "footer.liquid"), buildFooterLiquid());
+  const announcement = params.trustBadges[0] ?? params.home.heroCta;
+  await fs.writeFile(path.join(dir, "sections", "header.liquid"), buildHeaderLiquid(params.brandColor, announcement));
+  await fs.writeFile(path.join(dir, "sections", "footer.liquid"), buildFooterLiquid(params.brandColor));
   await fs.writeFile(
     path.join(dir, "sections", "ai-store-builder-home.liquid"),
-    buildHomeLiquid(params.home, params.brandColor),
+    buildHomeLiquid(params.home, params.brandColor, params.brandName, params.trustBadges),
   );
 
   const indexTemplate = {

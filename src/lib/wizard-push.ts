@@ -176,7 +176,12 @@ export async function pushWizardToShopify(
     let workDir: string | undefined;
     try {
       workDir = await createDawnWorkingCopy();
-      await injectStoreContent(workDir, { home: sitePlan.home, brandColor: wizard.brandColor });
+      await injectStoreContent(workDir, {
+        brandName: wizard.brandName,
+        brandColor: wizard.brandColor,
+        home: sitePlan.home,
+        trustBadges: sitePlan.productPage.trustBadges,
+      });
       const cliResult = await pushThemeViaCli({ shop: session.shop, path: workDir, themeId });
       result.theme.previewUrl = cliResult.editorUrl ?? result.theme.previewUrl;
       result.themeContent = { mode: "auto" };
