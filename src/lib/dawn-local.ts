@@ -8,11 +8,15 @@ import type { SitePlan } from "./site-plan";
 const DAWN_ZIP_URL = "https://codeload.github.com/Shopify/dawn/zip/refs/heads/main";
 const CACHE_DIR = path.join(process.cwd(), ".cache", "dawn-base");
 const CACHE_MARKER = path.join(CACHE_DIR, ".ready");
+const ZIP_CACHE_PATH = path.join(process.cwd(), ".cache", "dawn.zip");
 
 async function downloadDawnBase(): Promise<void> {
   const res = await fetch(DAWN_ZIP_URL);
   if (!res.ok) throw new Error(`Failed to download Dawn theme zip: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
+
+  await fs.mkdir(path.dirname(ZIP_CACHE_PATH), { recursive: true });
+  await fs.writeFile(ZIP_CACHE_PATH, buffer);
 
   const tmpZipDir = await fs.mkdtemp(path.join(os.tmpdir(), "dawn-zip-"));
   const zip = new AdmZip(buffer);
@@ -31,8 +35,19 @@ async function downloadDawnBase(): Promise<void> {
 }
 
 async function ensureDawnBaseCache(): Promise<void> {
-  if (fsSync.existsSync(CACHE_MARKER)) return;
+  if (fsSync.existsSync(CACHE_MARKER) && fsSync.existsSync(ZIP_CACHE_PATH)) return;
   await downloadDawnBase();
+}
+
+/**
+ * Returns the raw Dawn theme zip bytes (downloaded once from GitHub, cached
+ * locally). Served from our own /api/dawn-theme.zip so Shopify's theme `src`
+ * fetch hits our (more reliable) tunnel instead of GitHub directly — Shopify's
+ * server-side fetch of the GitHub zip was intermittently coming back empty.
+ */
+export async function getDawnZipBuffer(): Promise<Buffer> {
+  await ensureDawnBaseCache();
+  return fs.readFile(ZIP_CACHE_PATH);
 }
 
 export async function createDawnWorkingCopy(): Promise<string> {

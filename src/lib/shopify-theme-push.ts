@@ -1,9 +1,17 @@
 import type { Session } from "@shopify/shopify-api";
 
 const API_VERSION = "2026-07";
-// Use codeload.github.com directly — github.com/.../archive/....zip is a redirect,
-// and Shopify's theme src fetcher doesn't follow it (reports src as empty).
-const DAWN_THEME_ZIP = "https://codeload.github.com/Shopify/dawn/zip/refs/heads/main";
+
+// Shopify's server-side fetch of the Dawn zip directly from GitHub was
+// intermittently coming back empty (transient GitHub-side flakiness, outside
+// our control). We serve our own cached copy instead — see
+// /api/dawn-theme.zip and src/lib/dawn-local.ts — so Shopify fetches from our
+// own tunnel, which is far more reliable.
+function dawnThemeZipUrl(): string {
+  const appUrl = process.env.SHOPIFY_APP_URL;
+  if (!appUrl) throw new Error("Missing required env var: SHOPIFY_APP_URL");
+  return `${appUrl}/api/dawn-theme.zip`;
+}
 
 function restUrl(shop: string, path: string): string {
   return `https://${shop}/admin/api/${API_VERSION}${path}`;
@@ -30,18 +38,17 @@ function sleep(ms: number): Promise<void> {
 }
 
 export async function createDawnTheme(session: Session, name: string): Promise<number> {
+  const src = dawnThemeZipUrl();
   let lastErr: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const result = await shopifyRest<{ theme: { id: number } }>(session, "/themes.json", {
         method: "POST",
-        body: JSON.stringify({ theme: { name, src: DAWN_THEME_ZIP, role: "unpublished" } }),
+        body: JSON.stringify({ theme: { name, src, role: "unpublished" } }),
       });
       return result.theme.id;
     } catch (err) {
       lastErr = err;
-      // Shopify fetching the Dawn zip from GitHub occasionally comes back empty
-      // (transient GitHub-side hiccup, not our request) — retry a few times.
       if (String(err).includes('"src"') && attempt < 2) {
         await sleep(10_000);
         continue;
