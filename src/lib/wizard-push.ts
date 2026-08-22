@@ -181,6 +181,7 @@ export async function pushWizardToShopify(
         brandColor: wizard.brandColor,
         home: sitePlan.home,
         trustBadges: sitePlan.productPage.trustBadges,
+        faqs: sitePlan.productPage.faqs,
       });
       const cliResult = await pushThemeViaCli({ shop: session.shop, path: workDir, themeId });
       result.theme.previewUrl = cliResult.editorUrl ?? result.theme.previewUrl;

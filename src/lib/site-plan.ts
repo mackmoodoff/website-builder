@@ -31,6 +31,10 @@ export const productPageSchema = z.object({
   headline: z.string(),
   bulletPoints: z.array(z.string()).min(3).max(6),
   trustBadges: z.array(z.string()).min(2).max(5),
+  faqs: z
+    .array(z.object({ question: z.string(), answer: z.string() }))
+    .min(3)
+    .max(5),
 });
 
 export const cartCheckoutSchema = z.object({
@@ -110,7 +114,13 @@ Competitor reference (for tone/positioning only, do not copy): ${ctx.competitorS
 export async function generateProductPage(ctx: BuildContext) {
   const system = `You are an e-commerce copywriter building a Shopify product page.
 ${CONTEXT_NOTE.replace("{LANGUAGE}", ctx.language)}
-Respond with ONLY a JSON object: { "headline": string, "bulletPoints": string[] (3-6 items), "trustBadges": string[] (2-5 short items) }`;
+Respond with ONLY a JSON object:
+{
+  "headline": string,
+  "bulletPoints": string[] (3-6 items),
+  "trustBadges": string[] (2-5 short items),
+  "faqs": [{"question": string, "answer": string (1-2 sentences)}] (3-5 common pre-purchase questions)
+}`;
   const prompt = `Brand: ${ctx.brandName}
 Product: ${ctx.productName} — ${ctx.productDescription}
 Competitor reference (for tone/positioning only, do not copy): ${ctx.competitorSummary}`;

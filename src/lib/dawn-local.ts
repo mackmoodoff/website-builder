@@ -116,6 +116,7 @@ function buildHomeLiquid(
   brandColor: string,
   brandName: string,
   trustBadges: string[],
+  faqs: { question: string; answer: string }[],
 ): string {
   const heroTint = tint(brandColor, 10, NEUTRAL_BG);
   const badgeBorder = tint(brandColor, 35, "#ffffff");
@@ -154,6 +155,15 @@ function buildHomeLiquid(
       <p style="font-style:italic;color:#3a342c;margin-bottom:16px;">&ldquo;${esc(t.quote)}&rdquo;</p>
       <p style="font-weight:600;color:${brandColor};">&mdash; ${esc(t.name)}</p>
     </div>`,
+    )
+    .join("\n");
+
+  const faqBlocks = faqs
+    .map(
+      (f) => `    <details style="border-bottom:1px solid rgba(0,0,0,0.08);padding:18px 4px;">
+      <summary style="cursor:pointer;font-weight:600;color:${INK};list-style:none;">${esc(f.question)}</summary>
+      <p style="margin-top:12px;color:#5a5248;line-height:1.6;">${esc(f.answer)}</p>
+    </details>`,
     )
     .join("\n");
 
@@ -197,6 +207,13 @@ ${testimonialBlocks}
   </div>
 </section>
 
+<section style="padding:80px 24px;">
+  <div style="max-width:720px;margin:0 auto;">
+    <h2 style="text-align:center;font-size:32px;margin-bottom:32px;color:${INK};">Frequently Asked Questions</h2>
+${faqBlocks}
+  </div>
+</section>
+
 <section style="text-align:center;padding:100px 24px;">
   <h2 style="font-size:34px;margin-bottom:16px;color:${INK};">${esc(hero.finalCtaHeading)}</h2>
   <p style="font-size:18px;color:#5a5248;margin-bottom:32px;">${esc(hero.finalCtaBody)}</p>
@@ -209,14 +226,20 @@ ${testimonialBlocks}
 
 export async function injectStoreContent(
   dir: string,
-  params: { brandName: string; brandColor: string; home: SitePlan["home"]; trustBadges: string[] },
+  params: {
+    brandName: string;
+    brandColor: string;
+    home: SitePlan["home"];
+    trustBadges: string[];
+    faqs: { question: string; answer: string }[];
+  },
 ): Promise<void> {
   const announcement = params.trustBadges[0] ?? params.home.heroCta;
   await fs.writeFile(path.join(dir, "sections", "header.liquid"), buildHeaderLiquid(params.brandColor, announcement));
   await fs.writeFile(path.join(dir, "sections", "footer.liquid"), buildFooterLiquid(params.brandColor));
   await fs.writeFile(
     path.join(dir, "sections", "ai-store-builder-home.liquid"),
-    buildHomeLiquid(params.home, params.brandColor, params.brandName, params.trustBadges),
+    buildHomeLiquid(params.home, params.brandColor, params.brandName, params.trustBadges, params.faqs),
   );
 
   const indexTemplate = {
