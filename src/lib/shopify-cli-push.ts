@@ -43,10 +43,13 @@ export async function pushThemeViaCli(params: { shop: string; path: string }): P
   let stdout = "";
   let stderr = "";
   try {
+    // shell: true is required on Windows — npx resolves to npx.cmd, and Node's
+    // execFile won't find it without going through a shell (causes ENOENT).
     const result = await execFileAsync("npx", args, {
       timeout: 5 * 60_000,
       maxBuffer: 10 * 1024 * 1024,
       env: { ...process.env },
+      shell: true,
     });
     stdout = result.stdout;
     stderr = result.stderr;
