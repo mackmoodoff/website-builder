@@ -74,8 +74,58 @@ function tint(brandColor: string, pct: number, base = "#ffffff"): string {
   return `color-mix(in srgb, ${brandColor} ${pct}%, ${base})`;
 }
 
+/** Small inline SVGs (no external icon library) — currentColor so they inherit text color. */
+function svgCheck(size = 16): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" fill="none" style="flex-shrink:0;"><circle cx="10" cy="10" r="10" fill="currentColor" opacity="0.15"/><path d="M6 10.5l2.5 2.5L14 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function svgStar(): string {
+  return `<svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.5l2.47 5.28 5.53.63-4.13 3.9 1.13 5.69L10 14.5l-4.99 2.5 1.13-5.69-4.13-3.9 5.53-.63L10 1.5z"/></svg>`;
+}
+
+function starRow(brandColor: string): string {
+  return `<span style="display:inline-flex;gap:2px;color:${brandColor};">${svgStar()}${svgStar()}${svgStar()}${svgStar()}${svgStar()}</span>`;
+}
+
+/** Shared CSS (buttons, cards, badge glow, scroll-reveal) — injected once via the header, which Shopify renders on every page. */
+function sharedStyleBlock(brandColor: string): string {
+  const glow = tint(brandColor, 45, "transparent");
+  return `<style>
+  .asb-btn { transition: transform .2s ease, box-shadow .2s ease; box-shadow: 0 4px 16px ${glow}; }
+  .asb-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 26px ${tint(brandColor, 55, "transparent")}; }
+  .asb-card { transition: transform .25s ease, box-shadow .25s ease; }
+  .asb-card:hover { transform: translateY(-5px); box-shadow: 0 14px 32px rgba(0,0,0,0.08); }
+  .asb-badge-glow { box-shadow: 0 0 0 0 ${glow}; animation: asb-pulse 2.4s ease-in-out infinite; }
+  @keyframes asb-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 ${glow}; }
+    50% { box-shadow: 0 0 0 10px transparent; }
+  }
+  .asb-reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+  .asb-reveal.asb-in { opacity: 1; transform: none; }
+  details.asb-faq[open] summary .asb-chevron { transform: rotate(45deg); }
+  .asb-chevron { transition: transform .2s ease; display: inline-block; }
+</style>`;
+}
+
+/** Scroll-reveal script — injected once via the footer, which renders on every page. */
+function scrollRevealScript(): string {
+  return `<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var els = document.querySelectorAll('.asb-reveal');
+  if (!('IntersectionObserver' in window)) { els.forEach(function (el) { el.classList.add('asb-in'); }); return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) { entry.target.classList.add('asb-in'); io.unobserve(entry.target); }
+    });
+  }, { threshold: 0.15 });
+  els.forEach(function (el) { io.observe(el); });
+});
+</script>`;
+}
+
 function buildHeaderLiquid(brandColor: string, announcement: string): string {
-  return `<div style="background:${INK};color:#fff;text-align:center;padding:8px 16px;font-size:13px;letter-spacing:0.02em;">
+  return `${sharedStyleBlock(brandColor)}
+<div style="background:${INK};color:#fff;text-align:center;padding:8px 16px;font-size:13px;letter-spacing:0.02em;">
   ${esc(announcement)}
 </div>
 <header style="background:${NEUTRAL_BG};color:${INK};padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;border-bottom:1px solid rgba(0,0,0,0.06);">
@@ -102,10 +152,11 @@ function buildFooterLiquid(brandColor: string): string {
   </nav>
   <div style="max-width:420px;margin:0 auto 24px;display:flex;gap:8px;">
     <input type="email" placeholder="Email address" style="flex:1;padding:12px 14px;border-radius:6px;border:none;font-size:14px;">
-    <span style="display:inline-block;padding:12px 22px;background:${brandColor};color:#fff;border-radius:6px;font-weight:600;font-size:14px;white-space:nowrap;">Subscribe</span>
+    <span class="asb-btn" style="display:inline-block;padding:12px 22px;background:${brandColor};color:#fff;border-radius:6px;font-weight:600;font-size:14px;white-space:nowrap;">Subscribe</span>
   </div>
   <p style="font-size:13px;color:#888888;">&copy; {{ "now" | date: "%Y" }} {{ shop.name }}. All rights reserved.</p>
 </footer>
+${scrollRevealScript()}
 {% schema %}
 { "name": "AI Store Builder Footer" }
 {% endschema %}`;
@@ -125,14 +176,15 @@ function buildHomeLiquid(
     .slice(0, 3)
     .map(
       (b) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:${INK};">
-      <span style="color:${brandColor};font-weight:700;">&#10003;</span> ${esc(b)}
+      <span style="color:${brandColor};">${svgCheck(18)}</span> ${esc(b)}
     </span>`,
     )
     .join("\n      ");
 
   const featureBlocks = hero.sections
     .map(
-      (s) => `    <div style="text-align:center;">
+      (s, i) => `    <div class="asb-reveal asb-card" style="text-align:center;background:#fff;padding:28px 20px;border-radius:12px;transition-delay:${i * 80}ms;">
+      <div style="width:44px;height:44px;margin:0 auto 14px;border-radius:50%;background:${tint(brandColor, 15, NEUTRAL_BG)};color:${brandColor};display:flex;align-items:center;justify-content:center;font-weight:700;">${i + 1}</div>
       <h3 style="font-size:19px;margin-bottom:10px;color:${INK};">${esc(s.heading)}</h3>
       <p style="color:#5a5248;line-height:1.6;">${esc(s.body)}</p>
     </div>`,
@@ -143,16 +195,17 @@ function buildHomeLiquid(
     .map(
       (b) => `    <tr>
       <td style="padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);color:${INK};">${esc(b)}</td>
-      <td style="padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);text-align:center;background:${tint(brandColor, 12, NEUTRAL_BG)};color:${brandColor};font-weight:700;">&#10003;</td>
-      <td style="padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);text-align:center;color:#b5aca0;">&#10005;</td>
+      <td style="padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);text-align:center;background:${tint(brandColor, 12, NEUTRAL_BG)};color:${brandColor};">${svgCheck(18)}</td>
+      <td style="padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.06);text-align:center;color:#c9beb0;font-size:16px;">&#10005;</td>
     </tr>`,
     )
     .join("\n");
 
   const testimonialBlocks = hero.testimonials
     .map(
-      (t) => `    <div style="background:#ffffff;padding:28px;border-radius:10px;">
-      <p style="font-style:italic;color:#3a342c;margin-bottom:16px;">&ldquo;${esc(t.quote)}&rdquo;</p>
+      (t, i) => `    <div class="asb-reveal asb-card" style="background:#ffffff;padding:28px;border-radius:12px;transition-delay:${i * 80}ms;">
+      ${starRow(brandColor)}
+      <p style="font-style:italic;color:#3a342c;margin:12px 0 16px;">&ldquo;${esc(t.quote)}&rdquo;</p>
       <p style="font-weight:600;color:${brandColor};">&mdash; ${esc(t.name)}</p>
     </div>`,
     )
@@ -160,33 +213,33 @@ function buildHomeLiquid(
 
   const faqBlocks = faqs
     .map(
-      (f) => `    <details style="border-bottom:1px solid rgba(0,0,0,0.08);padding:18px 4px;">
-      <summary style="cursor:pointer;font-weight:600;color:${INK};list-style:none;">${esc(f.question)}</summary>
+      (f) => `    <details class="asb-faq" style="border-bottom:1px solid rgba(0,0,0,0.08);padding:18px 4px;">
+      <summary style="cursor:pointer;font-weight:600;color:${INK};list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;">${esc(f.question)} <span class="asb-chevron" style="color:${brandColor};font-size:18px;">+</span></summary>
       <p style="margin-top:12px;color:#5a5248;line-height:1.6;">${esc(f.answer)}</p>
     </details>`,
     )
     .join("\n");
 
-  return `<section style="background:${NEUTRAL_BG};background:${heroTint};padding:100px 24px;text-align:center;">
-  <span style="display:inline-block;padding:6px 18px;border-radius:999px;background:#fff;border:1px solid ${badgeBorder};color:${brandColor};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:24px;">${esc(brandName)}</span>
+  return `<section class="asb-reveal" style="background:${NEUTRAL_BG};background:${heroTint};padding:100px 24px;text-align:center;">
+  <span class="asb-badge-glow" style="display:inline-block;padding:6px 18px;border-radius:999px;background:#fff;border:1px solid ${badgeBorder};color:${brandColor};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:24px;">${esc(brandName)}</span>
   <h1 style="font-size:48px;margin-bottom:18px;font-weight:800;line-height:1.15;color:${INK};">${esc(hero.heroHeading)}</h1>
   <p style="font-size:20px;max-width:640px;margin:0 auto 28px;color:#5a5248;font-style:italic;">${esc(hero.heroSubheading)}</p>
   <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:32px;">
       ${checklist}
   </div>
-  <a href="/collections/all" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:16px;">${esc(hero.heroCta)}</a>
+  <a href="/collections/all" class="asb-btn" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:16px;">${esc(hero.heroCta)}</a>
 </section>
 
 <section style="padding:80px 24px;max-width:1100px;margin:0 auto;">
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:40px;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:32px;">
 ${featureBlocks}
   </div>
 </section>
 
-<section style="padding:80px 24px;">
+<section class="asb-reveal" style="padding:80px 24px;">
   <div style="max-width:720px;margin:0 auto;">
     <h2 style="text-align:center;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:32px;margin-bottom:32px;color:${INK};">${esc(brandName)} Difference</h2>
-    <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.05);">
       <thead>
         <tr>
           <td style="padding:14px 16px;font-weight:700;color:${INK};"></td>
@@ -202,22 +255,22 @@ ${comparisonRows}
 </section>
 
 <section style="background:${NEUTRAL_BG};padding:80px 24px;">
-  <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:32px;">
+  <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:28px;">
 ${testimonialBlocks}
   </div>
 </section>
 
-<section style="padding:80px 24px;">
+<section class="asb-reveal" style="padding:80px 24px;">
   <div style="max-width:720px;margin:0 auto;">
     <h2 style="text-align:center;font-size:32px;margin-bottom:32px;color:${INK};">Frequently Asked Questions</h2>
 ${faqBlocks}
   </div>
 </section>
 
-<section style="text-align:center;padding:100px 24px;">
+<section class="asb-reveal" style="text-align:center;padding:100px 24px;background:${heroTint};">
   <h2 style="font-size:34px;margin-bottom:16px;color:${INK};">${esc(hero.finalCtaHeading)}</h2>
   <p style="font-size:18px;color:#5a5248;margin-bottom:32px;">${esc(hero.finalCtaBody)}</p>
-  <a href="/collections/all" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;">${esc(hero.heroCta)}</a>
+  <a href="/collections/all" class="asb-btn" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;">${esc(hero.heroCta)}</a>
 </section>
 {% schema %}
 { "name": "AI Store Builder Home" }
