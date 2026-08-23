@@ -99,7 +99,13 @@ export default function MaterialsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save selection");
-      router.push(`/wizard/${wizardId}/confirm`);
+
+      const buildRes = await fetch(`/api/wizard/${wizardId}/build`, { method: "POST" });
+      if (!buildRes.ok) {
+        const buildData = await buildRes.json().catch(() => ({}));
+        throw new Error(buildData.error || "Could not start the build");
+      }
+      router.push(`/wizard/${wizardId}/build`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

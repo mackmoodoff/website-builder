@@ -33,21 +33,24 @@ below.
    (`POST /api/wizard/[id]/images/generate`, KIE AI's `gpt-image-2` async job
    API via `src/lib/image-gen.ts`) from a creative brief. At least 8 images
    must be selected (`POST /api/wizard/[id]/images/select`) to continue.
-4. **Confirm competitor** (`/wizard/[id]/confirm`) — shows/edits the main
-   competitor link, then starts the build (`POST /api/wizard/[id]/build`).
-5. **Build** (`/wizard/[id]/build`) — runs in the background
-   (`src/lib/wizard-build.ts`): Claude drafts homepage, product page, and
+4. **Build** — selecting images immediately kicks off the background build
+   (`POST /api/wizard/[id]/build` → `src/lib/wizard-build.ts`, no separate
+   confirmation step): Claude drafts homepage, product page, and
    cart/checkout copy in the target market's language, **structurally
    inspired by the competitor's positioning but 100% original wording** (not
-   scraped/copied text) — see "Why not a literal copy" below. The page polls
-   `GET /api/wizard/[id]/status` for a live progress bar.
-6. **Push** — `POST /api/wizard/[id]/push` (`src/lib/wizard-push.ts`) creates
-   a draft product with the selected images (uploaded via Shopify's
-   staged-upload flow, `src/lib/shopify-staged-upload.ts`) and a new
-   **unpublished** theme copied from Shopify's free Dawn theme
-   (`src/lib/shopify-theme-push.ts`). It returns a theme editor preview link —
-   the theme is intentionally left unpublished so the merchant reviews before it
-   goes live.
+   scraped/copied text) — see "Why not a literal copy" below. The
+   `/wizard/[id]/build` page polls `GET /api/wizard/[id]/status` for a live
+   progress bar.
+5. **Push** — `POST /api/wizard/[id]/push` (`src/lib/wizard-push.ts`) creates
+   an **active, published-to-Online-Store** product with the selected images
+   (uploaded via Shopify's staged-upload flow,
+   `src/lib/shopify-staged-upload.ts`) and a new theme copied from Shopify's
+   free Dawn theme (`src/lib/shopify-theme-push.ts`), with a fully
+   custom-authored header, footer, homepage, and product page (icons, hover/
+   glow effects, scroll-reveal animations — see `src/lib/dawn-local.ts`)
+   pushed onto it via the Shopify CLI (`src/lib/shopify-cli-push.ts`). Cart
+   and checkout stay Shopify's own native pages/mechanics — only those two
+   are still Dawn defaults, intentionally.
 
 ### Why not a literal copy
 
@@ -142,7 +145,6 @@ src/
     page.tsx                          connect-store landing page
     wizard/page.tsx                   step 2: market/product/brand/competitors form
     wizard/[id]/materials/page.tsx    step 3-4: reference + AI image generation/selection
-    wizard/[id]/confirm/page.tsx      step 5: confirm/edit main competitor link
     wizard/[id]/build/page.tsx        step 6-7: live build progress + push to Shopify
     generate/page.tsx                 legacy: prompt -> AI plan preview -> push
     api/auth/route.ts                 begin Shopify OAuth

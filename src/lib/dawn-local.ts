@@ -123,6 +123,17 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>`;
 }
 
+function faqAccordionHtml(faqs: { question: string; answer: string }[], brandColor: string): string {
+  return faqs
+    .map(
+      (f) => `    <details class="asb-faq" style="border-bottom:1px solid rgba(0,0,0,0.08);padding:18px 4px;">
+      <summary style="cursor:pointer;font-weight:600;color:${INK};list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;">${esc(f.question)} <span class="asb-chevron" style="color:${brandColor};font-size:18px;">+</span></summary>
+      <p style="margin-top:12px;color:#5a5248;line-height:1.6;">${esc(f.answer)}</p>
+    </details>`,
+    )
+    .join("\n");
+}
+
 function buildHeaderLiquid(brandColor: string, announcement: string): string {
   return `${sharedStyleBlock(brandColor)}
 <div style="background:${INK};color:#fff;text-align:center;padding:8px 16px;font-size:13px;letter-spacing:0.02em;">
@@ -211,14 +222,7 @@ function buildHomeLiquid(
     )
     .join("\n");
 
-  const faqBlocks = faqs
-    .map(
-      (f) => `    <details class="asb-faq" style="border-bottom:1px solid rgba(0,0,0,0.08);padding:18px 4px;">
-      <summary style="cursor:pointer;font-weight:600;color:${INK};list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;">${esc(f.question)} <span class="asb-chevron" style="color:${brandColor};font-size:18px;">+</span></summary>
-      <p style="margin-top:12px;color:#5a5248;line-height:1.6;">${esc(f.answer)}</p>
-    </details>`,
-    )
-    .join("\n");
+  const faqBlocks = faqAccordionHtml(faqs, brandColor);
 
   return `<section class="asb-reveal" style="background:${NEUTRAL_BG};background:${heroTint};padding:100px 24px;text-align:center;">
   <span class="asb-badge-glow" style="display:inline-block;padding:6px 18px;border-radius:999px;background:#fff;border:1px solid ${badgeBorder};color:${brandColor};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:24px;">${esc(brandName)}</span>
@@ -277,22 +281,169 @@ ${faqBlocks}
 {% endschema %}`;
 }
 
+function buildProductLiquid(productPage: SitePlan["productPage"], brandColor: string): string {
+  const { headline, bulletPoints, trustBadges, faqs } = productPage;
+
+  const bulletItems = bulletPoints
+    .map(
+      (b) => `      <li style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:${INK};line-height:1.5;">
+        <span style="color:${brandColor};margin-top:2px;">${svgCheck(18)}</span><span>${esc(b)}</span>
+      </li>`,
+    )
+    .join("\n");
+
+  const trustChips = trustBadges
+    .map(
+      (b) => `    <span style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:${tint(brandColor, 10, NEUTRAL_BG)};color:${INK};font-size:13px;font-weight:600;">
+      <span style="color:${brandColor};">${svgCheck(16)}</span>${esc(b)}
+    </span>`,
+    )
+    .join("\n");
+
+  const trustCards = trustBadges
+    .map(
+      (b, i) => `    <div class="asb-reveal asb-card" style="text-align:center;background:#fff;padding:26px 18px;border-radius:12px;transition-delay:${i * 80}ms;">
+      <div style="width:44px;height:44px;margin:0 auto 12px;border-radius:50%;background:${tint(brandColor, 15, NEUTRAL_BG)};color:${brandColor};display:flex;align-items:center;justify-content:center;">${svgCheck(22)}</div>
+      <p style="font-weight:600;color:${INK};">${esc(b)}</p>
+    </div>`,
+    )
+    .join("\n");
+
+  const faqBlocks = faqAccordionHtml(faqs, brandColor);
+
+  return `<section style="max-width:1160px;margin:0 auto;padding:56px 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:start;">
+  <div>
+    <div style="border-radius:14px;overflow:hidden;background:${NEUTRAL_BG};aspect-ratio:1/1;">
+      {% if product.selected_or_first_available_variant.featured_media %}
+        {{ product.selected_or_first_available_variant.featured_media | image_url: width: 1000 | image_tag: id: 'asb-main-image', loading: 'eager', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
+      {% elsif product.featured_media %}
+        {{ product.featured_media | image_url: width: 1000 | image_tag: id: 'asb-main-image', loading: 'eager', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
+      {% endif %}
+    </div>
+    {% if product.media.size > 1 %}
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+      {% for media in product.media %}
+        <button type="button" class="asb-thumb asb-card" data-full="{{ media | image_url: width: 1000 }}" style="width:64px;height:64px;border-radius:8px;overflow:hidden;padding:0;border:1px solid rgba(0,0,0,0.1);cursor:pointer;background:none;">
+          {{ media | image_url: width: 160 | image_tag: loading: 'lazy', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
+        </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <h1 style="font-size:34px;font-weight:800;line-height:1.15;color:${INK};margin-bottom:14px;">{{ product.title }}</h1>
+    <div style="margin-bottom:14px;">${starRow(brandColor)}</div>
+    <p style="font-size:17px;color:#5a5248;margin-bottom:22px;">${esc(headline)}</p>
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:26px;">
+      <span style="font-size:28px;font-weight:800;color:${INK};">{{ product.price | money }}</span>
+      {% if product.compare_at_price > product.price %}
+        <span style="text-decoration:line-through;color:#a89e90;font-size:16px;">{{ product.compare_at_price | money }}</span>
+      {% endif %}
+    </div>
+
+    <ul style="list-style:none;padding:0;margin:0 0 30px;display:flex;flex-direction:column;gap:12px;">
+${bulletItems}
+    </ul>
+
+    {% form 'product', product, id: 'asb-product-form' %}
+      <input type="hidden" name="id" id="asb-variant-id" value="{{ product.selected_or_first_available_variant.id }}">
+      {% for option in product.options_with_values %}
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;color:${INK};margin-bottom:6px;">{{ option.name }}</label>
+          <select class="asb-option-select" data-option-index="{{ forloop.index0 }}" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,0,0,0.14);font-size:15px;background:#fff;">
+            {% for value in option.values %}
+              <option value="{{ value | escape }}">{{ value }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endfor %}
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;">
+        <label style="font-size:13px;font-weight:600;color:${INK};">Qty</label>
+        <input type="number" name="quantity" value="1" min="1" style="width:70px;padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.14);">
+      </div>
+      <button type="submit" name="add" class="asb-btn" {% unless product.selected_or_first_available_variant.available %}disabled{% endunless %} style="width:100%;padding:16px;background:${brandColor};color:#fff;border:none;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer;margin-bottom:12px;">
+        {% if product.selected_or_first_available_variant.available %}Add to Cart{% else %}Sold Out{% endif %}
+      </button>
+      {{ form | payment_button }}
+    {% endform %}
+
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;">
+${trustChips}
+    </div>
+  </div>
+</section>
+
+<section style="background:${NEUTRAL_BG};padding:72px 24px;">
+  <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:26px;">
+${trustCards}
+  </div>
+</section>
+
+<section class="asb-reveal" style="padding:72px 24px;">
+  <div style="max-width:720px;margin:0 auto;">
+    <h2 style="text-align:center;font-size:30px;margin-bottom:28px;color:${INK};">Frequently Asked Questions</h2>
+${faqBlocks}
+  </div>
+</section>
+
+<script type="application/json" id="asb-variants-json">{{ product.variants | json }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var thumbs = document.querySelectorAll('.asb-thumb');
+  var main = document.getElementById('asb-main-image');
+  thumbs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (main && btn.dataset.full) { main.src = btn.dataset.full; }
+    });
+  });
+
+  var variantsEl = document.getElementById('asb-variants-json');
+  var selects = document.querySelectorAll('.asb-option-select');
+  var hiddenInput = document.getElementById('asb-variant-id');
+  if (variantsEl && selects.length && hiddenInput) {
+    var variants = JSON.parse(variantsEl.textContent);
+    function updateVariant() {
+      var selected = Array.prototype.map.call(selects, function (s) { return s.value; });
+      var match = variants.find(function (v) {
+        return selected.every(function (val, i) { return v.options[i] === val; });
+      });
+      if (match) hiddenInput.value = match.id;
+    }
+    selects.forEach(function (s) { s.addEventListener('change', updateVariant); });
+  }
+});
+</script>
+{% schema %}
+{ "name": "AI Store Builder Product" }
+{% endschema %}`;
+}
+
 export async function injectStoreContent(
   dir: string,
   params: {
     brandName: string;
     brandColor: string;
     home: SitePlan["home"];
-    trustBadges: string[];
-    faqs: { question: string; answer: string }[];
+    productPage: SitePlan["productPage"];
   },
 ): Promise<void> {
-  const announcement = params.trustBadges[0] ?? params.home.heroCta;
+  const announcement = params.productPage.trustBadges[0] ?? params.home.heroCta;
   await fs.writeFile(path.join(dir, "sections", "header.liquid"), buildHeaderLiquid(params.brandColor, announcement));
   await fs.writeFile(path.join(dir, "sections", "footer.liquid"), buildFooterLiquid(params.brandColor));
   await fs.writeFile(
     path.join(dir, "sections", "ai-store-builder-home.liquid"),
-    buildHomeLiquid(params.home, params.brandColor, params.brandName, params.trustBadges, params.faqs),
+    buildHomeLiquid(
+      params.home,
+      params.brandColor,
+      params.brandName,
+      params.productPage.trustBadges,
+      params.productPage.faqs,
+    ),
+  );
+  await fs.writeFile(
+    path.join(dir, "sections", "ai-store-builder-product.liquid"),
+    buildProductLiquid(params.productPage, params.brandColor),
   );
 
   const indexTemplate = {
@@ -300,6 +451,12 @@ export async function injectStoreContent(
     order: ["ai_store_builder_home"],
   };
   await fs.writeFile(path.join(dir, "templates", "index.json"), JSON.stringify(indexTemplate, null, 2));
+
+  const productTemplate = {
+    sections: { ai_store_builder_product: { type: "ai-store-builder-product" } },
+    order: ["ai_store_builder_product"],
+  };
+  await fs.writeFile(path.join(dir, "templates", "product.json"), JSON.stringify(productTemplate, null, 2));
 }
 
 export async function cleanupWorkingCopy(dir: string): Promise<void> {
