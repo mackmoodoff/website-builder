@@ -424,6 +424,13 @@ function buildProductLiquid(
       {% endif %}
     </div>
 
+    {% if product.compare_at_price > product.price %}
+    <div id="asb-countdown" style="display:inline-flex;align-items:center;gap:10px;background:${tint(brandColor, 10, NEUTRAL_BG)};border-radius:8px;padding:10px 16px;margin-bottom:22px;font-size:14px;color:${INK};font-weight:600;">
+      <span>Today's price ends in</span>
+      <span><span id="asb-cd-h">00</span>:<span id="asb-cd-m">00</span>:<span id="asb-cd-s">00</span></span>
+    </div>
+    {% endif %}
+
     <ul style="list-style:none;padding:0;margin:0 0 30px;display:flex;flex-direction:column;gap:12px;">
 ${bulletItems}
     </ul>
@@ -546,6 +553,21 @@ document.addEventListener('DOMContentLoaded', function () {
       qtyInput.value = val;
     });
   });
+
+  var cdH = document.getElementById('asb-cd-h');
+  if (cdH) {
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function tickCountdown() {
+      var now = new Date();
+      var end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+      var diff = Math.max(0, end - now);
+      document.getElementById('asb-cd-h').textContent = pad(Math.floor(diff / 3600000));
+      document.getElementById('asb-cd-m').textContent = pad(Math.floor((diff % 3600000) / 60000));
+      document.getElementById('asb-cd-s').textContent = pad(Math.floor((diff % 60000) / 1000));
+    }
+    tickCountdown();
+    setInterval(tickCountdown, 1000);
+  }
 
   var stickyBar = document.getElementById('asb-sticky-bar');
   var mainForm = document.getElementById('asb-product-form');
