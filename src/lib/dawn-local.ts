@@ -107,6 +107,8 @@ function sharedStyleBlock(brandColor: string): string {
   .asb-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .asb-table-wrap table { min-width: 480px; }
   img { max-width: 100%; height: auto; }
+  .asb-marquee-track { width: max-content; animation: asb-marquee 24s linear infinite; }
+  @keyframes asb-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 </style>`;
 }
 
@@ -227,6 +229,37 @@ function buildHomeLiquid(
 
   const faqBlocks = faqAccordionHtml(faqs, brandColor);
 
+  const marqueeItems = trustBadges.length > 0 ? trustBadges : [brandName];
+  const marqueeRow = marqueeItems
+    .map(
+      (b) => `<span style="display:inline-flex;align-items:center;gap:8px;padding:0 28px;color:#fff;font-size:14px;font-weight:600;letter-spacing:0.02em;">
+        <span style="color:${brandColor};">${svgCheck(16)}</span>${esc(b)}
+      </span>`,
+    )
+    .join("\n      ");
+
+  const collectionGrid = `{% assign asb_products = collections.all.products %}
+  {% if asb_products.size > 0 %}
+  <section class="asb-reveal" style="padding:clamp(48px,10vw,80px) 20px;max-width:1160px;margin:0 auto;">
+    <h2 style="text-align:center;font-size:clamp(24px,5vw,32px);margin-bottom:32px;color:${INK};">Shop {{ shop.name }}</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;">
+      {% for product in asb_products limit: 6 %}
+        <a href="{{ product.url }}" class="asb-reveal asb-card" style="display:block;text-decoration:none;color:inherit;background:#fff;border-radius:12px;overflow:hidden;transition-delay:{{ forloop.index0 | times: 60 }}ms;">
+          <div style="aspect-ratio:1/1;background:${NEUTRAL_BG};">
+            {% if product.featured_image %}
+              {{ product.featured_image | image_url: width: 500 | image_tag: loading: 'lazy', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
+            {% endif %}
+          </div>
+          <div style="padding:16px;">
+            <p style="font-weight:600;color:${INK};margin-bottom:6px;">{{ product.title }}</p>
+            <p style="color:${brandColor};font-weight:700;">{{ product.price | money }}</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}`;
+
   return `<section class="asb-reveal" style="background:${NEUTRAL_BG};background:${heroTint};padding:clamp(56px,12vw,100px) 20px;text-align:center;">
   <span class="asb-badge-glow" style="display:inline-block;padding:6px 18px;border-radius:999px;background:#fff;border:1px solid ${badgeBorder};color:${brandColor};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:24px;">${esc(brandName)}</span>
   <h1 style="font-size:clamp(28px,6vw,48px);margin-bottom:18px;font-weight:800;line-height:1.15;color:${INK};">${esc(hero.heroHeading)}</h1>
@@ -236,6 +269,15 @@ function buildHomeLiquid(
   </div>
   <a href="/collections/all" class="asb-btn" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:16px;">${esc(hero.heroCta)}</a>
 </section>
+
+<div style="overflow:hidden;background:${INK};padding:14px 0;">
+  <div class="asb-marquee-track" style="display:flex;">
+    <div style="display:flex;flex-shrink:0;">${marqueeRow}</div>
+    <div style="display:flex;flex-shrink:0;" aria-hidden="true">${marqueeRow}</div>
+  </div>
+</div>
+
+${collectionGrid}
 
 <section style="padding:clamp(48px,10vw,80px) 20px;max-width:1100px;margin:0 auto;">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:32px;">
