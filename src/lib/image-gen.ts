@@ -8,7 +8,7 @@ function getApiKey(): string {
   return key;
 }
 
-async function createTask(prompt: string): Promise<string> {
+async function createTask(prompt: string, referenceImageUrl?: string): Promise<string> {
   const res = await fetch(`${KIE_BASE_URL}/api/v1/jobs/createTask`, {
     method: "POST",
     headers: {
@@ -16,8 +16,10 @@ async function createTask(prompt: string): Promise<string> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-image-2-text-to-image",
-      input: { prompt, aspect_ratio: "1:1" },
+      model: referenceImageUrl ? "gpt-image-2-image-to-image" : "gpt-image-2-text-to-image",
+      input: referenceImageUrl
+        ? { prompt, image_urls: [referenceImageUrl], aspect_ratio: "1:1" }
+        : { prompt, aspect_ratio: "1:1" },
     }),
   });
   const data = await res.json();
@@ -68,5 +70,28 @@ Style: clean, modern, minimal-to-no readable text or logos in the image, high-en
 Creative direction: ${params.brief}`;
 
   const taskId = await createTask(prompt);
+  return pollTask(taskId);
+}
+
+/**
+ * Recreates a reference image's general style/composition as a brand-new,
+ * original image — not a copy — restyled to the merchant's brand color and
+ * with any on-image text in their market's language.
+ */
+export async function recreateImageInBrandStyle(params: {
+  referenceImageUrl: string;
+  brandName: string;
+  brandColor: string;
+  productName: string;
+  language: string;
+}): Promise<string> {
+  const prompt = `Recreate the general composition and photographic style of the reference image as a completely
+new, original photo — do not copy it exactly, do not include any of its original text/logos/watermarks.
+Restyle it for a brand called "${params.brandName}" selling "${params.productName}".
+Brand accent color: ${params.brandColor} (use tastefully in props, background, or lighting).
+If the recreated image includes any on-image text, write it in ${params.language}.
+High-end e-commerce studio quality, suitable for a Shopify product photo or banner.`;
+
+  const taskId = await createTask(prompt, params.referenceImageUrl);
   return pollTask(taskId);
 }

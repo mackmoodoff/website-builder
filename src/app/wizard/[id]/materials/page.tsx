@@ -33,6 +33,7 @@ export default function MaterialsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [continuing, setContinuing] = useState(false);
+  const [recreatingId, setRecreatingId] = useState<string | null>(null);
 
   const loadWizard = useCallback(async () => {
     const res = await fetch(`/api/wizard/${wizardId}`);
@@ -76,6 +77,25 @@ export default function MaterialsPage() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleRecreate(imageId: string) {
+    setRecreatingId(imageId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/wizard/${wizardId}/images/recreate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Recreate failed");
+      await loadWizard();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRecreatingId(null);
     }
   }
 
@@ -173,6 +193,19 @@ export default function MaterialsPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={img.dataUrl} alt={img.source} className="aspect-square w-full rounded object-cover" />
             <span className="mt-1 block text-center text-xs text-neutral-500">{img.source}</span>
+            {(img.source === "competitor" || img.source === "supplier") && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRecreate(img.id);
+                }}
+                disabled={recreatingId === img.id}
+                className="mt-1 w-full rounded bg-black/80 px-1 py-1 text-[10px] font-medium text-white hover:bg-black disabled:opacity-50"
+              >
+                {recreatingId === img.id ? "Recreating..." : "Recreate in our style"}
+              </button>
+            )}
           </label>
         ))}
       </section>

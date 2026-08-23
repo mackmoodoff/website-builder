@@ -72,11 +72,11 @@ function extractJson(text: string): string {
   return fenced ? fenced[1].trim() : trimmed;
 }
 
-async function callClaude(system: string, prompt: string): Promise<unknown> {
+async function callClaude(system: string, prompt: string, maxTokens = 2048): Promise<unknown> {
   const client = getClient();
   const message = await client.messages.create({
     model: MODEL,
-    max_tokens: 2048,
+    max_tokens: maxTokens,
     system,
     messages: [{ role: "user", content: prompt }],
   });
@@ -125,6 +125,23 @@ Respond with ONLY a JSON object:
 Product: ${ctx.productName} — ${ctx.productDescription}
 Competitor reference (for tone/positioning only, do not copy): ${ctx.competitorSummary}`;
   return productPageSchema.parse(await callClaude(system, prompt));
+}
+
+export async function editSitePlan(current: SitePlan, message: string, language: string): Promise<SitePlan> {
+  const system = `You edit an e-commerce site's content plan, given as JSON, based on a merchant's change request.
+Return ONLY the complete updated JSON object, with exactly the same shape/keys as the input.
+Keep every field the merchant did not ask to change exactly as it was.
+Never fabricate false claims (fake stats, fake urgency, fake counts) — only rephrase, restructure, or extend using
+plausible original copy in the same spirit as the existing content.
+Keep writing in ${language}.`;
+  const prompt = `Current site plan JSON:
+${JSON.stringify(current, null, 2)}
+
+Merchant's request: ${message}
+
+Return the full updated JSON object only, no commentary.`;
+  const updated = await callClaude(system, prompt, 4096);
+  return sitePlanSchema.parse(updated);
 }
 
 export async function generateCartAndCheckout(ctx: BuildContext) {
