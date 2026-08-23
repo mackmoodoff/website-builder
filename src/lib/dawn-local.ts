@@ -388,7 +388,13 @@ function buildProductLiquid(
 
   return `<section style="max-width:1160px;margin:0 auto;padding:clamp(32px,8vw,56px) 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:clamp(28px,6vw,48px);align-items:start;">
   <div>
-    <div style="border-radius:14px;overflow:hidden;background:${NEUTRAL_BG};aspect-ratio:1/1;">
+    <div style="position:relative;border-radius:14px;overflow:hidden;background:${NEUTRAL_BG};aspect-ratio:1/1;">
+      {% if product.compare_at_price > product.price %}
+        <span style="position:absolute;top:12px;left:12px;background:${brandColor};color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;z-index:2;">Sale</span>
+      {% endif %}
+      {% unless product.selected_or_first_available_variant.available %}
+        <span style="position:absolute;top:12px;left:12px;background:${INK};color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;z-index:2;">Sold Out</span>
+      {% endunless %}
       {% if product.selected_or_first_available_variant.featured_media %}
         {{ product.selected_or_first_available_variant.featured_media | image_url: width: 1000 | image_tag: id: 'asb-main-image', loading: 'eager', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
       {% elsif product.featured_media %}
@@ -435,9 +441,13 @@ ${bulletItems}
       {% endfor %}
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;">
         <label style="font-size:13px;font-weight:600;color:${INK};">Qty</label>
-        <input type="number" name="quantity" value="1" min="1" style="width:70px;padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.14);">
+        <div style="display:flex;align-items:center;border:1px solid rgba(0,0,0,0.14);border-radius:8px;overflow:hidden;">
+          <button type="button" class="asb-qty-btn" data-action="dec" style="width:38px;height:38px;border:none;background:#fff;cursor:pointer;font-size:18px;color:${INK};">&minus;</button>
+          <input type="number" name="quantity" id="asb-qty-input" value="1" min="1" style="width:48px;height:38px;text-align:center;border:none;border-left:1px solid rgba(0,0,0,0.1);border-right:1px solid rgba(0,0,0,0.1);">
+          <button type="button" class="asb-qty-btn" data-action="inc" style="width:38px;height:38px;border:none;background:#fff;cursor:pointer;font-size:18px;color:${INK};">+</button>
+        </div>
       </div>
-      <button type="submit" name="add" class="asb-btn" {% unless product.selected_or_first_available_variant.available %}disabled{% endunless %} style="width:100%;padding:16px;background:${brandColor};color:#fff;border:none;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer;margin-bottom:12px;">
+      <button type="submit" name="add" id="asb-add-to-cart" class="asb-btn" {% unless product.selected_or_first_available_variant.available %}disabled{% endunless %} style="width:100%;padding:16px;background:${brandColor};color:#fff;border:none;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer;margin-bottom:12px;">
         {% if product.selected_or_first_available_variant.available %}Add to Cart{% else %}Sold Out{% endif %}
       </button>
       {{ form | payment_button }}
@@ -448,6 +458,16 @@ ${trustChips}
     </div>
   </div>
 </section>
+
+<div id="asb-sticky-bar" style="position:fixed;left:0;right:0;bottom:-100px;background:#fff;border-top:1px solid rgba(0,0,0,0.08);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 -6px 24px rgba(0,0,0,0.08);transition:bottom .3s ease;z-index:50;">
+  <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+    <span style="font-weight:600;color:${INK};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ product.title }}</span>
+    <span style="font-weight:700;color:${brandColor};flex-shrink:0;">{{ product.price | money }}</span>
+  </div>
+  {% if product.selected_or_first_available_variant.available %}
+    <button type="button" id="asb-sticky-add" class="asb-btn" style="padding:12px 24px;background:${brandColor};color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Add to Cart</button>
+  {% endif %}
+</div>
 
 <section style="background:${NEUTRAL_BG};padding:clamp(40px,8vw,72px) 20px;">
   <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:26px;">
@@ -506,6 +526,36 @@ document.addEventListener('DOMContentLoaded', function () {
       if (match) hiddenInput.value = match.id;
     }
     selects.forEach(function (s) { s.addEventListener('change', updateVariant); });
+  }
+
+  var qtyInput = document.getElementById('asb-qty-input');
+  document.querySelectorAll('.asb-qty-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!qtyInput) return;
+      var val = parseInt(qtyInput.value, 10) || 1;
+      val = btn.dataset.action === 'inc' ? val + 1 : Math.max(1, val - 1);
+      qtyInput.value = val;
+    });
+  });
+
+  var stickyBar = document.getElementById('asb-sticky-bar');
+  var mainForm = document.getElementById('asb-product-form');
+  var stickyAdd = document.getElementById('asb-sticky-add');
+  if (stickyBar && mainForm) {
+    if ('IntersectionObserver' in window) {
+      var stickyIo = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          stickyBar.style.bottom = entry.isIntersecting ? '-100px' : '0';
+        });
+      }, { threshold: 0 });
+      stickyIo.observe(mainForm);
+    }
+    if (stickyAdd) {
+      stickyAdd.addEventListener('click', function () {
+        if (mainForm.requestSubmit) mainForm.requestSubmit();
+        else mainForm.submit();
+      });
+    }
   }
 });
 </script>
