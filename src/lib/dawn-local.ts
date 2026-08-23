@@ -104,6 +104,9 @@ function sharedStyleBlock(brandColor: string): string {
   .asb-reveal.asb-in { opacity: 1; transform: none; }
   details.asb-faq[open] summary .asb-chevron { transform: rotate(45deg); }
   .asb-chevron { transition: transform .2s ease; display: inline-block; }
+  .asb-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .asb-table-wrap table { min-width: 480px; }
+  img { max-width: 100%; height: auto; }
 </style>`;
 }
 
@@ -224,25 +227,26 @@ function buildHomeLiquid(
 
   const faqBlocks = faqAccordionHtml(faqs, brandColor);
 
-  return `<section class="asb-reveal" style="background:${NEUTRAL_BG};background:${heroTint};padding:100px 24px;text-align:center;">
+  return `<section class="asb-reveal" style="background:${NEUTRAL_BG};background:${heroTint};padding:clamp(56px,12vw,100px) 20px;text-align:center;">
   <span class="asb-badge-glow" style="display:inline-block;padding:6px 18px;border-radius:999px;background:#fff;border:1px solid ${badgeBorder};color:${brandColor};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:24px;">${esc(brandName)}</span>
-  <h1 style="font-size:48px;margin-bottom:18px;font-weight:800;line-height:1.15;color:${INK};">${esc(hero.heroHeading)}</h1>
-  <p style="font-size:20px;max-width:640px;margin:0 auto 28px;color:#5a5248;font-style:italic;">${esc(hero.heroSubheading)}</p>
+  <h1 style="font-size:clamp(28px,6vw,48px);margin-bottom:18px;font-weight:800;line-height:1.15;color:${INK};">${esc(hero.heroHeading)}</h1>
+  <p style="font-size:clamp(16px,3vw,20px);max-width:640px;margin:0 auto 28px;color:#5a5248;font-style:italic;">${esc(hero.heroSubheading)}</p>
   <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:32px;">
       ${checklist}
   </div>
   <a href="/collections/all" class="asb-btn" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:16px;">${esc(hero.heroCta)}</a>
 </section>
 
-<section style="padding:80px 24px;max-width:1100px;margin:0 auto;">
+<section style="padding:clamp(48px,10vw,80px) 20px;max-width:1100px;margin:0 auto;">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:32px;">
 ${featureBlocks}
   </div>
 </section>
 
-<section class="asb-reveal" style="padding:80px 24px;">
+<section class="asb-reveal" style="padding:clamp(48px,10vw,80px) 20px;">
   <div style="max-width:720px;margin:0 auto;">
-    <h2 style="text-align:center;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:32px;margin-bottom:32px;color:${INK};">${esc(brandName)} Difference</h2>
+    <h2 style="text-align:center;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:clamp(24px,5vw,32px);margin-bottom:32px;color:${INK};">${esc(brandName)} Difference</h2>
+    <div class="asb-table-wrap">
     <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.05);">
       <thead>
         <tr>
@@ -255,24 +259,25 @@ ${featureBlocks}
 ${comparisonRows}
       </tbody>
     </table>
+    </div>
   </div>
 </section>
 
-<section style="background:${NEUTRAL_BG};padding:80px 24px;">
+<section style="background:${NEUTRAL_BG};padding:clamp(48px,10vw,80px) 20px;">
   <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:28px;">
 ${testimonialBlocks}
   </div>
 </section>
 
-<section class="asb-reveal" style="padding:80px 24px;">
+<section class="asb-reveal" style="padding:clamp(48px,10vw,80px) 20px;">
   <div style="max-width:720px;margin:0 auto;">
-    <h2 style="text-align:center;font-size:32px;margin-bottom:32px;color:${INK};">Frequently Asked Questions</h2>
+    <h2 style="text-align:center;font-size:clamp(24px,5vw,32px);margin-bottom:32px;color:${INK};">Frequently Asked Questions</h2>
 ${faqBlocks}
   </div>
 </section>
 
-<section class="asb-reveal" style="text-align:center;padding:100px 24px;background:${heroTint};">
-  <h2 style="font-size:34px;margin-bottom:16px;color:${INK};">${esc(hero.finalCtaHeading)}</h2>
+<section class="asb-reveal" style="text-align:center;padding:clamp(56px,12vw,100px) 20px;background:${heroTint};">
+  <h2 style="font-size:clamp(26px,5vw,34px);margin-bottom:16px;color:${INK};">${esc(hero.finalCtaHeading)}</h2>
   <p style="font-size:18px;color:#5a5248;margin-bottom:32px;">${esc(hero.finalCtaBody)}</p>
   <a href="/collections/all" class="asb-btn" style="display:inline-block;padding:16px 40px;background:${brandColor};color:#fff;text-decoration:none;border-radius:6px;font-weight:700;">${esc(hero.heroCta)}</a>
 </section>
@@ -281,8 +286,36 @@ ${faqBlocks}
 {% endschema %}`;
 }
 
-function buildProductLiquid(productPage: SitePlan["productPage"], brandColor: string): string {
+function buildProductLiquid(
+  productPage: SitePlan["productPage"],
+  brandColor: string,
+  testimonials: { name: string; quote: string }[],
+): string {
   const { headline, bulletPoints, trustBadges, faqs } = productPage;
+
+  const testimonialBlocks = testimonials
+    .map(
+      (t, i) => `    <div class="asb-reveal asb-card" style="background:#ffffff;padding:28px;border-radius:12px;transition-delay:${i * 80}ms;">
+      ${starRow(brandColor)}
+      <p style="font-style:italic;color:#3a342c;margin:12px 0 16px;">&ldquo;${esc(t.quote)}&rdquo;</p>
+      <p style="font-weight:600;color:${brandColor};">&mdash; ${esc(t.name)}</p>
+    </div>`,
+    )
+    .join("\n");
+
+  const howItWorksSteps = [
+    { label: "Order", body: "Pick your option and check out securely in a couple of clicks." },
+    { label: "Ship", body: "We carefully pack and ship your order straight to your door." },
+    { label: "Enjoy", body: "Unbox it and start using it the same day it arrives." },
+  ]
+    .map(
+      (s, i) => `    <div class="asb-reveal asb-card" style="text-align:center;background:#fff;padding:28px 20px;border-radius:12px;transition-delay:${i * 80}ms;">
+      <div style="width:44px;height:44px;margin:0 auto 14px;border-radius:50%;background:${tint(brandColor, 15, NEUTRAL_BG)};color:${brandColor};display:flex;align-items:center;justify-content:center;font-weight:700;">${i + 1}</div>
+      <h3 style="font-size:18px;margin-bottom:8px;color:${INK};">${esc(s.label)}</h3>
+      <p style="color:#5a5248;line-height:1.6;font-size:14px;">${esc(s.body)}</p>
+    </div>`,
+    )
+    .join("\n");
 
   const bulletItems = bulletPoints
     .map(
@@ -311,7 +344,7 @@ function buildProductLiquid(productPage: SitePlan["productPage"], brandColor: st
 
   const faqBlocks = faqAccordionHtml(faqs, brandColor);
 
-  return `<section style="max-width:1160px;margin:0 auto;padding:56px 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:start;">
+  return `<section style="max-width:1160px;margin:0 auto;padding:clamp(32px,8vw,56px) 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:clamp(28px,6vw,48px);align-items:start;">
   <div>
     <div style="border-radius:14px;overflow:hidden;background:${NEUTRAL_BG};aspect-ratio:1/1;">
       {% if product.selected_or_first_available_variant.featured_media %}
@@ -332,7 +365,7 @@ function buildProductLiquid(productPage: SitePlan["productPage"], brandColor: st
   </div>
 
   <div>
-    <h1 style="font-size:34px;font-weight:800;line-height:1.15;color:${INK};margin-bottom:14px;">{{ product.title }}</h1>
+    <h1 style="font-size:clamp(26px,5vw,34px);font-weight:800;line-height:1.15;color:${INK};margin-bottom:14px;">{{ product.title }}</h1>
     <div style="margin-bottom:14px;">${starRow(brandColor)}</div>
     <p style="font-size:17px;color:#5a5248;margin-bottom:22px;">${esc(headline)}</p>
     <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:26px;">
@@ -374,15 +407,35 @@ ${trustChips}
   </div>
 </section>
 
-<section style="background:${NEUTRAL_BG};padding:72px 24px;">
+<section style="background:${NEUTRAL_BG};padding:clamp(40px,8vw,72px) 20px;">
   <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:26px;">
 ${trustCards}
   </div>
 </section>
 
-<section class="asb-reveal" style="padding:72px 24px;">
+<section style="padding:clamp(40px,8vw,72px) 20px;max-width:1000px;margin:0 auto;">
+  <h2 style="text-align:center;font-size:clamp(22px,4vw,28px);margin-bottom:32px;color:${INK};">How It Works</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;">
+${howItWorksSteps}
+  </div>
+</section>
+
+${
+  testimonialBlocks
+    ? `<section style="background:${NEUTRAL_BG};padding:clamp(40px,8vw,72px) 20px;">
+  <div style="max-width:900px;margin:0 auto;">
+    <h2 style="text-align:center;font-size:clamp(22px,4vw,28px);margin-bottom:32px;color:${INK};">What Customers Say</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;">
+${testimonialBlocks}
+    </div>
+  </div>
+</section>`
+    : ""
+}
+
+<section class="asb-reveal" style="padding:clamp(40px,8vw,72px) 20px;">
   <div style="max-width:720px;margin:0 auto;">
-    <h2 style="text-align:center;font-size:30px;margin-bottom:28px;color:${INK};">Frequently Asked Questions</h2>
+    <h2 style="text-align:center;font-size:clamp(24px,5vw,30px);margin-bottom:28px;color:${INK};">Frequently Asked Questions</h2>
 ${faqBlocks}
   </div>
 </section>
@@ -443,7 +496,7 @@ export async function injectStoreContent(
   );
   await fs.writeFile(
     path.join(dir, "sections", "ai-store-builder-product.liquid"),
-    buildProductLiquid(params.productPage, params.brandColor),
+    buildProductLiquid(params.productPage, params.brandColor, params.home.testimonials),
   );
 
   const indexTemplate = {
