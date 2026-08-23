@@ -333,6 +333,7 @@ function buildProductLiquid(
   productPage: SitePlan["productPage"],
   brandColor: string,
   testimonials: { name: string; quote: string }[],
+  shippingNote: string,
 ): string {
   const { headline, bulletPoints, trustBadges, faqs } = productPage;
 
@@ -459,6 +460,7 @@ ${bulletItems}
         {% if product.selected_or_first_available_variant.available %}Add to Cart{% else %}Sold Out{% endif %}
       </button>
       {{ form | payment_button }}
+      {{ form | payment_terms }}
     {% endform %}
 
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;">
@@ -514,8 +516,37 @@ ${testimonialBlocks}
 <section class="asb-reveal" style="padding:clamp(40px,8vw,72px) 20px;">
   <div style="max-width:720px;margin:0 auto;">
     <h2 style="text-align:center;font-size:clamp(24px,5vw,30px);margin-bottom:28px;color:${INK};">Frequently Asked Questions</h2>
+    <details class="asb-faq" style="border-bottom:1px solid rgba(0,0,0,0.08);padding:18px 4px;">
+      <summary style="cursor:pointer;font-weight:600;color:${INK};list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;">Shipping &amp; Returns <span class="asb-chevron" style="color:${brandColor};font-size:18px;">+</span></summary>
+      <p style="margin-top:12px;color:#5a5248;line-height:1.6;">${esc(shippingNote)}</p>
+    </details>
 ${faqBlocks}
   </div>
+</section>
+
+<section class="asb-reveal" style="background:${NEUTRAL_BG};padding:clamp(40px,8vw,72px) 20px;">
+  {% assign asb_current_id = product.id %}
+  {% assign asb_related = collections.all.products | where_exp: 'p', 'p.id != asb_current_id' %}
+  {% if asb_related.size > 0 %}
+  <div style="max-width:1160px;margin:0 auto;">
+    <h2 style="text-align:center;font-size:clamp(22px,4vw,28px);margin-bottom:32px;color:${INK};">You May Also Like</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;">
+      {% for rec_product in asb_related limit: 4 %}
+        <a href="{{ rec_product.url }}" class="asb-reveal asb-card" style="display:block;text-decoration:none;color:inherit;background:#fff;border-radius:12px;overflow:hidden;transition-delay:{{ forloop.index0 | times: 60 }}ms;">
+          <div style="aspect-ratio:1/1;background:${NEUTRAL_BG};">
+            {% if rec_product.featured_image %}
+              {{ rec_product.featured_image | image_url: width: 500 | image_tag: loading: 'lazy', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
+            {% endif %}
+          </div>
+          <div style="padding:16px;">
+            <p style="font-weight:600;color:${INK};margin-bottom:6px;">{{ rec_product.title }}</p>
+            <p style="color:${brandColor};font-weight:700;">{{ rec_product.price | money }}</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </section>
 
 <script type="application/json" id="asb-variants-json">{{ product.variants | json }}</script>
@@ -602,6 +633,7 @@ export async function injectStoreContent(
     brandColor: string;
     home: SitePlan["home"];
     productPage: SitePlan["productPage"];
+    cart: SitePlan["cart"];
   },
 ): Promise<void> {
   const announcement = params.productPage.trustBadges[0] ?? params.home.heroCta;
@@ -619,7 +651,7 @@ export async function injectStoreContent(
   );
   await fs.writeFile(
     path.join(dir, "sections", "ai-store-builder-product.liquid"),
-    buildProductLiquid(params.productPage, params.brandColor, params.home.testimonials),
+    buildProductLiquid(params.productPage, params.brandColor, params.home.testimonials, params.cart.shippingNote),
   );
 
   const indexTemplate = {
