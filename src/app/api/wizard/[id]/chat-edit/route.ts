@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { editSitePlan, type SitePlan } from "@/lib/site-plan";
+import { editProductPage, type SitePlan } from "@/lib/site-plan";
 import { marketByCode } from "@/lib/markets";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -23,7 +23,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const language = marketByCode(wizard.market)?.languageName ?? "English";
 
   try {
-    const updated = await editSitePlan(current, message, language);
+    const updatedProductPage = await editProductPage(current.productPage, message, language);
+    const updated: SitePlan = { ...current, productPage: updatedProductPage };
     await prisma.storeWizard.update({ where: { id }, data: { sitePlan: JSON.stringify(updated) } });
     return NextResponse.json({ sitePlan: updated });
   } catch (err) {

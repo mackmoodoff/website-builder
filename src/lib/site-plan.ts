@@ -127,21 +127,29 @@ Competitor reference (for tone/positioning only, do not copy): ${ctx.competitorS
   return productPageSchema.parse(await callClaude(system, prompt));
 }
 
-export async function editSitePlan(current: SitePlan, message: string, language: string): Promise<SitePlan> {
-  const system = `You edit an e-commerce site's content plan, given as JSON, based on a merchant's change request.
-Return ONLY the complete updated JSON object, with exactly the same shape/keys as the input.
+export async function editProductPage(
+  current: SitePlan["productPage"],
+  message: string,
+  language: string,
+): Promise<SitePlan["productPage"]> {
+  const system = `You edit a Shopify product page's content plan, given as JSON, based on a merchant's change request.
+Return ONLY the updated JSON object, with exactly this shape:
+{
+  "headline": string,
+  "bulletPoints": string[] (3-6 items),
+  "trustBadges": string[] (2-5 short items),
+  "faqs": [{"question": string, "answer": string}] (3-5 items)
+}
 Keep every field the merchant did not ask to change exactly as it was.
 Never fabricate false claims (fake stats, fake urgency, fake counts) — only rephrase, restructure, or extend using
 plausible original copy in the same spirit as the existing content.
-Keep writing in ${language}.`;
-  const prompt = `Current site plan JSON:
+Keep writing in ${language}. Return ONLY the JSON object, no commentary, no markdown fences.`;
+  const prompt = `Current product page JSON:
 ${JSON.stringify(current, null, 2)}
 
-Merchant's request: ${message}
-
-Return the full updated JSON object only, no commentary.`;
-  const updated = await callClaude(system, prompt, 4096);
-  return sitePlanSchema.parse(updated);
+Merchant's request: ${message}`;
+  const updated = await callClaude(system, prompt, 2048);
+  return productPageSchema.parse(updated);
 }
 
 export async function generateCartAndCheckout(ctx: BuildContext) {

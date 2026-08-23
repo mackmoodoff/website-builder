@@ -24,10 +24,6 @@ type PushResult = {
   themeContent: { mode: "auto" } | { mode: "manual"; heading: string; subheading: string; reason: string };
 };
 
-function initials(name: string): string {
-  return (name.trim().charAt(0) || "?").toUpperCase();
-}
-
 export default function PreviewPage() {
   const params = useParams();
   const wizardId = params.id as string;
@@ -78,7 +74,7 @@ export default function PreviewPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Edit failed");
       setSitePlan(data.sitePlan);
-      setMessages((prev) => [...prev, { role: "assistant", text: "Done — updated the site above." }]);
+      setMessages((prev) => [...prev, { role: "assistant", text: "Done — updated the preview above." }]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -115,30 +111,31 @@ export default function PreviewPage() {
   const brandColor = wizard.brandColor;
   const selectedImages = wizard.images.filter((i) => i.selected);
   const heroImage = selectedImages[0]?.dataUrl;
+  const { productPage } = sitePlan;
 
-  const sectionClass = (label: string) =>
-    `rounded ${commentMode ? "cursor-pointer transition hover:ring-2 hover:ring-offset-2" : ""} ${
-      activeSection === label ? "ring-2 ring-offset-2" : ""
-    }`;
-  const sectionStyle = (label: string): React.CSSProperties =>
-    commentMode || activeSection === label ? { boxShadow: activeSection === label ? `0 0 0 2px ${brandColor}` : undefined } : {};
+  const sectionProps = (label: string) => ({
+    onClick: () => onSectionClick(label),
+    className: `rounded ${commentMode ? "cursor-pointer transition hover:ring-2 hover:ring-offset-2" : ""}`,
+    style:
+      activeSection === label
+        ? ({ boxShadow: `0 0 0 2px ${brandColor}` } as React.CSSProperties)
+        : undefined,
+  });
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 lg:flex-row lg:items-start">
       <div className="flex flex-1 flex-col items-center gap-3">
-        <h1 className="text-xl font-semibold">Live preview (mobile)</h1>
+        <h1 className="text-xl font-semibold">Live preview — product page (mobile)</h1>
         <p className="max-w-sm text-center text-xs text-neutral-500">
-          This mirrors the design that will be pushed to Shopify. Nothing goes live until you click
-          &quot;Push to Shopify&quot; below.
+          Claude will also build your homepage and other pages — this preview focuses on the product
+          page since that&apos;s the one you&apos;ll want to fine-tune first. Nothing goes live until
+          you click &quot;Push to Shopify&quot; below.
         </p>
 
         {/* Mobile phone frame */}
         <div className="w-[380px] max-w-full overflow-hidden rounded-[28px] border-8 border-neutral-800 bg-white shadow-xl">
           <div className="h-[720px] overflow-y-auto text-left" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
-            {/* Announcement + header */}
-            <div style={{ background: "#2a2420", color: "#fff", textAlign: "center", padding: "6px 12px", fontSize: 11 }}>
-              {sitePlan.productPage.trustBadges[0] ?? sitePlan.home.heroCta}
-            </div>
+            {/* Header */}
             <div
               style={{
                 background: "#faf7f2",
@@ -153,50 +150,8 @@ export default function PreviewPage() {
               {wizard.brandName}
             </div>
 
-            {/* Hero */}
-            <div
-              className={sectionClass("Hero")}
-              style={{ background: "#faf7f2", padding: "32px 18px", textAlign: "center", ...sectionStyle("Hero") }}
-              onClick={() => onSectionClick("Hero")}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "4px 12px",
-                  borderRadius: 999,
-                  background: "#fff",
-                  border: `1px solid ${brandColor}`,
-                  color: brandColor,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  marginBottom: 12,
-                }}
-              >
-                {wizard.brandName}
-              </span>
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: "#2a2420", marginBottom: 8 }}>
-                {sitePlan.home.heroHeading}
-              </h2>
-              <p style={{ fontSize: 13, color: "#5a5248", fontStyle: "italic", marginBottom: 14 }}>
-                {sitePlan.home.heroSubheading}
-              </p>
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "10px 22px",
-                  background: brandColor,
-                  color: "#fff",
-                  borderRadius: 6,
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}
-              >
-                {sitePlan.home.heroCta}
-              </span>
-            </div>
-
-            {/* Product hero */}
-            <div className={sectionClass("Product image")} style={sectionStyle("Product image")} onClick={() => onSectionClick("Product image")}>
+            {/* Product image */}
+            <div {...sectionProps("Product image")}>
               <div style={{ aspectRatio: "1/1", background: "#faf7f2" }}>
                 {heroImage && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -207,27 +162,18 @@ export default function PreviewPage() {
 
             <div className="px-4 pt-4">
               <div style={{ color: brandColor, fontSize: 13, marginBottom: 6 }}>★★★★★</div>
-              <h3
-                className={sectionClass("Product title")}
-                style={{ fontSize: 18, fontWeight: 800, color: "#2a2420", marginBottom: 8, ...sectionStyle("Product title") }}
-                onClick={() => onSectionClick("Product title")}
-              >
+              <h3 {...sectionProps("Product title")} style={{ ...sectionProps("Product title").style, fontSize: 18, fontWeight: 800, color: "#2a2420", marginBottom: 8 }}>
                 {wizard.productName}
               </h3>
-              <p
-                className={sectionClass("Product headline")}
-                style={{ fontSize: 13, color: "#5a5248", marginBottom: 14, ...sectionStyle("Product headline") }}
-                onClick={() => onSectionClick("Product headline")}
-              >
-                {sitePlan.productPage.headline}
+              <p {...sectionProps("Headline")} style={{ ...sectionProps("Headline").style, fontSize: 13, color: "#5a5248", marginBottom: 14 }}>
+                {productPage.headline}
               </p>
 
               <div
-                className={sectionClass("Product bullet points")}
-                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16, ...sectionStyle("Product bullet points") }}
-                onClick={() => onSectionClick("Product bullet points")}
+                {...sectionProps("Bullet points")}
+                style={{ ...sectionProps("Bullet points").style, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}
               >
-                {sitePlan.productPage.bulletPoints.slice(0, 4).map((b, i) => (
+                {productPage.bulletPoints.slice(0, 4).map((b, i) => (
                   <div key={i} style={{ display: "flex", gap: 6, fontSize: 11.5, color: "#2a2420" }}>
                     <span style={{ color: brandColor }}>✓</span>
                     <span>{b}</span>
@@ -250,55 +196,39 @@ export default function PreviewPage() {
               >
                 Add to Cart
               </div>
-            </div>
 
-            {/* Testimonials */}
-            <div
-              className={sectionClass("Testimonials")}
-              style={{ background: "#faf7f2", padding: "20px 16px", ...sectionStyle("Testimonials") }}
-              onClick={() => onSectionClick("Testimonials")}
-            >
-              <h4 style={{ textAlign: "center", fontSize: 15, marginBottom: 14, color: "#2a2420" }}>What Customers Say</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {sitePlan.home.testimonials.slice(0, 2).map((t, i) => (
-                  <div key={i} style={{ background: "#fff", padding: 12, borderRadius: 10 }}>
-                    <p style={{ fontSize: 12, fontStyle: "italic", color: "#3a342c", marginBottom: 8 }}>&ldquo;{t.quote}&rdquo;</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: "50%",
-                          background: brandColor,
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {initials(t.name)}
-                      </div>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: brandColor }}>{t.name}</span>
-                    </div>
+              <div {...sectionProps("Trust badges")} style={{ ...sectionProps("Trust badges").style, display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+                {productPage.trustBadges.map((b, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "6px 10px",
+                      borderRadius: 999,
+                      background: "#faf7f2",
+                      color: "#2a2420",
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span style={{ color: brandColor }}>✓</span>
+                    {b}
+                  </span>
+                ))}
+              </div>
+
+              {/* FAQ */}
+              <div {...sectionProps("FAQ")} style={{ ...sectionProps("FAQ").style, paddingBottom: 20 }}>
+                <h4 style={{ fontSize: 14, marginBottom: 10, color: "#2a2420" }}>FAQ</h4>
+                {productPage.faqs.slice(0, 4).map((f, i) => (
+                  <div key={i} style={{ borderBottom: "1px solid rgba(0,0,0,0.08)", padding: "8px 0" }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#2a2420" }}>{f.question}</p>
+                    <p style={{ fontSize: 11.5, color: "#5a5248", marginTop: 4 }}>{f.answer}</p>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* FAQ */}
-            <div
-              className={sectionClass("FAQ")}
-              style={{ padding: "20px 16px", ...sectionStyle("FAQ") }}
-              onClick={() => onSectionClick("FAQ")}
-            >
-              <h4 style={{ textAlign: "center", fontSize: 15, marginBottom: 14, color: "#2a2420" }}>FAQ</h4>
-              {sitePlan.productPage.faqs.slice(0, 3).map((f, i) => (
-                <div key={i} style={{ borderBottom: "1px solid rgba(0,0,0,0.08)", padding: "10px 0" }}>
-                  <p style={{ fontSize: 12.5, fontWeight: 600, color: "#2a2420" }}>{f.question}</p>
-                </div>
-              ))}
             </div>
           </div>
         </div>
@@ -318,11 +248,11 @@ export default function PreviewPage() {
           </button>
         </div>
 
-        <div className="flex h-80 flex-col gap-2 overflow-y-auto rounded-md border border-neutral-200 p-3">
+        <div className="flex h-72 flex-col gap-2 overflow-y-auto rounded-md border border-neutral-200 p-3">
           {messages.length === 0 && (
             <p className="text-xs text-neutral-400">
-              Tell me what to change — e.g. &quot;make the hero heading punchier&quot; — or turn on Comment mode and
-              click a section first.
+              Tell me what to change — e.g. &quot;make the headline punchier&quot; — or turn on Comment
+              mode and click a section first.
             </p>
           )}
           {messages.map((m, i) => (
