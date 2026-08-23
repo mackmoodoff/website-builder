@@ -109,6 +109,7 @@ function sharedStyleBlock(brandColor: string): string {
   img { max-width: 100%; height: auto; }
   .asb-marquee-track { width: max-content; animation: asb-marquee 24s linear infinite; }
   @keyframes asb-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .asb-payment-icon { height: 24px; width: auto; }
 </style>`;
 }
 
@@ -456,6 +457,14 @@ ${bulletItems}
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;">
 ${trustChips}
     </div>
+
+    {% if shop.enabled_payment_types.size > 0 %}
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;">
+      {% for type in shop.enabled_payment_types %}
+        {{ type | payment_type_svg_tag: class: 'asb-payment-icon' }}
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 </section>
 
