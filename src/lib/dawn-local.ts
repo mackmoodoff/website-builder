@@ -373,13 +373,17 @@ function buildProductLiquid(
     )
     .join("\n");
 
-  const bulletItems = bulletPoints
+  const bulletCards = bulletPoints
+    .slice(0, 4)
     .map(
-      (b) => `      <li style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:${INK};line-height:1.5;">
-        <span style="color:${brandColor};margin-top:2px;">${svgCheck(18)}</span><span>${esc(b)}</span>
-      </li>`,
+      (b) => `      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <span style="color:${brandColor};flex-shrink:0;margin-top:1px;">${svgCheck(20)}</span>
+        <span style="font-size:14px;color:${INK};line-height:1.45;">${esc(b)}</span>
+      </div>`,
     )
     .join("\n");
+
+  const testimonialTickerJson = JSON.stringify(testimonials).replace(/</g, "\\u003c");
 
   const trustChips = trustBadges
     .map(
@@ -400,93 +404,102 @@ function buildProductLiquid(
 
   const faqBlocks = faqAccordionHtml(faqs, brandColor);
 
-  return `<section style="max-width:1160px;margin:0 auto;padding:clamp(32px,8vw,56px) 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:clamp(28px,6vw,48px);align-items:start;">
-  <div>
-    <div style="position:relative;border-radius:14px;overflow:hidden;background:${NEUTRAL_BG};aspect-ratio:1/1;">
-      {% if product.compare_at_price > product.price %}
-        <span style="position:absolute;top:12px;left:12px;background:${brandColor};color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;z-index:2;">Sale</span>
-      {% endif %}
-      {% unless product.selected_or_first_available_variant.available %}
-        <span style="position:absolute;top:12px;left:12px;background:${INK};color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;z-index:2;">Sold Out</span>
-      {% endunless %}
-      {% if product.selected_or_first_available_variant.featured_media %}
-        {{ product.selected_or_first_available_variant.featured_media | image_url: width: 1000 | image_tag: id: 'asb-main-image', loading: 'eager', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
-      {% elsif product.featured_media %}
-        {{ product.featured_media | image_url: width: 1000 | image_tag: id: 'asb-main-image', loading: 'eager', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
-      {% endif %}
-    </div>
-    {% if product.media.size > 1 %}
-    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-      {% for media in product.media %}
-        <button type="button" class="asb-thumb asb-card" data-full="{{ media | image_url: width: 1000 }}" style="width:64px;height:64px;border-radius:8px;overflow:hidden;padding:0;border:1px solid rgba(0,0,0,0.1);cursor:pointer;background:none;">
-          {{ media | image_url: width: 160 | image_tag: loading: 'lazy', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
-        </button>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
-
-  <div>
-    <h1 style="font-size:clamp(26px,5vw,34px);font-weight:800;line-height:1.15;color:${INK};margin-bottom:14px;">{{ product.title }}</h1>
-    <div style="margin-bottom:14px;">${starRow(brandColor)}</div>
-    <p style="font-size:17px;color:#5a5248;margin-bottom:22px;">${esc(headline)}</p>
-    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:26px;">
-      <span style="font-size:28px;font-weight:800;color:${INK};">{{ product.price | money }}</span>
-      {% if product.compare_at_price > product.price %}
-        <span style="text-decoration:line-through;color:#a89e90;font-size:16px;">{{ product.compare_at_price | money }}</span>
-      {% endif %}
-    </div>
-
+  return `<section style="max-width:640px;margin:0 auto;padding:clamp(28px,8vw,48px) 20px;">
+  <div style="position:relative;border-radius:14px;overflow:hidden;background:${NEUTRAL_BG};aspect-ratio:1/1;">
     {% if product.compare_at_price > product.price %}
-    <div id="asb-countdown" style="display:inline-flex;align-items:center;gap:10px;background:${tint(brandColor, 10, NEUTRAL_BG)};border-radius:8px;padding:10px 16px;margin-bottom:22px;font-size:14px;color:${INK};font-weight:600;">
-      <span>Today's price ends in</span>
-      <span><span id="asb-cd-h">00</span>:<span id="asb-cd-m">00</span>:<span id="asb-cd-s">00</span></span>
-    </div>
+      <span style="position:absolute;top:12px;left:12px;background:${brandColor};color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;z-index:2;">Sale</span>
     {% endif %}
-
-    <ul style="list-style:none;padding:0;margin:0 0 30px;display:flex;flex-direction:column;gap:12px;">
-${bulletItems}
-    </ul>
-
-    {% form 'product', product, id: 'asb-product-form' %}
-      <input type="hidden" name="id" id="asb-variant-id" value="{{ product.selected_or_first_available_variant.id }}">
-      {% for option in product.options_with_values %}
-        <div style="margin-bottom:16px;">
-          <label style="display:block;font-size:13px;font-weight:600;color:${INK};margin-bottom:6px;">{{ option.name }}</label>
-          <select class="asb-option-select" data-option-index="{{ forloop.index0 }}" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,0,0,0.14);font-size:15px;background:#fff;">
-            {% for value in option.values %}
-              <option value="{{ value | escape }}">{{ value }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      {% endfor %}
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;">
-        <label style="font-size:13px;font-weight:600;color:${INK};">Qty</label>
-        <div style="display:flex;align-items:center;border:1px solid rgba(0,0,0,0.14);border-radius:8px;overflow:hidden;">
-          <button type="button" class="asb-qty-btn" data-action="dec" style="width:38px;height:38px;border:none;background:#fff;cursor:pointer;font-size:18px;color:${INK};">&minus;</button>
-          <input type="number" name="quantity" id="asb-qty-input" value="1" min="1" style="width:48px;height:38px;text-align:center;border:none;border-left:1px solid rgba(0,0,0,0.1);border-right:1px solid rgba(0,0,0,0.1);">
-          <button type="button" class="asb-qty-btn" data-action="inc" style="width:38px;height:38px;border:none;background:#fff;cursor:pointer;font-size:18px;color:${INK};">+</button>
-        </div>
-      </div>
-      <button type="submit" name="add" id="asb-add-to-cart" class="asb-btn" {% unless product.selected_or_first_available_variant.available %}disabled{% endunless %} style="width:100%;padding:16px;background:${brandColor};color:#fff;border:none;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer;margin-bottom:12px;">
-        {% if product.selected_or_first_available_variant.available %}Add to Cart{% else %}Sold Out{% endif %}
-      </button>
-      {{ form | payment_button }}
-      {{ form | payment_terms }}
-    {% endform %}
-
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;">
-${trustChips}
-    </div>
-
-    {% if shop.enabled_payment_types.size > 0 %}
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;">
-      {% for type in shop.enabled_payment_types %}
-        {{ type | payment_type_svg_tag: class: 'asb-payment-icon' }}
-      {% endfor %}
-    </div>
+    {% unless product.selected_or_first_available_variant.available %}
+      <span style="position:absolute;top:12px;left:12px;background:${INK};color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:6px;z-index:2;">Sold Out</span>
+    {% endunless %}
+    {% if product.selected_or_first_available_variant.featured_media %}
+      {{ product.selected_or_first_available_variant.featured_media | image_url: width: 1000 | image_tag: id: 'asb-main-image', loading: 'eager', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
+    {% elsif product.featured_media %}
+      {{ product.featured_media | image_url: width: 1000 | image_tag: id: 'asb-main-image', loading: 'eager', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
     {% endif %}
   </div>
+  {% if product.media.size > 1 %}
+  <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;justify-content:center;">
+    {% for media in product.media %}
+      <button type="button" class="asb-thumb asb-card" data-full="{{ media | image_url: width: 1000 }}" style="width:56px;height:56px;border-radius:8px;overflow:hidden;padding:0;border:1px solid rgba(0,0,0,0.1);cursor:pointer;background:none;">
+        {{ media | image_url: width: 160 | image_tag: loading: 'lazy', style: 'width:100%;height:100%;object-fit:cover;display:block;' }}
+      </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div style="margin-top:22px;">${starRow(brandColor)}</div>
+  <h1 style="font-size:clamp(24px,6vw,32px);font-weight:800;line-height:1.15;color:${INK};margin:8px 0 12px;">{{ product.title }}</h1>
+
+  <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+    <span style="font-size:26px;font-weight:800;color:${INK};">{{ product.price | money }}</span>
+    {% if product.compare_at_price > product.price %}
+      <span style="text-decoration:line-through;color:#a89e90;font-size:15px;">{{ product.compare_at_price | money }}</span>
+      <span style="background:${INK};color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:5px;">SALE</span>
+    {% endif %}
+  </div>
+
+  {% if product.compare_at_price > product.price %}
+  <div id="asb-countdown" style="display:inline-flex;align-items:center;gap:10px;background:${tint(brandColor, 10, NEUTRAL_BG)};border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:14px;color:${INK};font-weight:600;">
+    <span>Today's price ends in</span>
+    <span><span id="asb-cd-h">00</span>:<span id="asb-cd-m">00</span>:<span id="asb-cd-s">00</span></span>
+  </div>
+  {% endif %}
+
+  <p style="font-size:15px;color:#5a5248;margin-bottom:20px;">${esc(headline)}</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;">
+${bulletCards}
+  </div>
+
+  {% form 'product', product, id: 'asb-product-form' %}
+    <input type="hidden" name="id" id="asb-variant-id" value="{{ product.selected_or_first_available_variant.id }}">
+    {% for option in product.options_with_values %}
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:600;color:${INK};margin-bottom:6px;">{{ option.name }}</label>
+        <select class="asb-option-select" data-option-index="{{ forloop.index0 }}" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,0,0,0.14);font-size:15px;background:#fff;">
+          {% for value in option.values %}
+            <option value="{{ value | escape }}">{{ value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;">
+      <label style="font-size:13px;font-weight:600;color:${INK};">Qty</label>
+      <div style="display:flex;align-items:center;border:1px solid rgba(0,0,0,0.14);border-radius:8px;overflow:hidden;">
+        <button type="button" class="asb-qty-btn" data-action="dec" style="width:38px;height:38px;border:none;background:#fff;cursor:pointer;font-size:18px;color:${INK};">&minus;</button>
+        <input type="number" name="quantity" id="asb-qty-input" value="1" min="1" style="width:48px;height:38px;text-align:center;border:none;border-left:1px solid rgba(0,0,0,0.1);border-right:1px solid rgba(0,0,0,0.1);">
+        <button type="button" class="asb-qty-btn" data-action="inc" style="width:38px;height:38px;border:none;background:#fff;cursor:pointer;font-size:18px;color:${INK};">+</button>
+      </div>
+    </div>
+    <button type="submit" name="add" id="asb-add-to-cart" class="asb-btn" {% unless product.selected_or_first_available_variant.available %}disabled{% endunless %} style="width:100%;padding:18px;background:${brandColor};color:#fff;border:none;border-radius:8px;font-weight:700;font-size:17px;cursor:pointer;margin-bottom:12px;">
+      {% if product.selected_or_first_available_variant.available %}Add to Cart{% else %}Sold Out{% endif %}
+    </button>
+    {{ form | payment_button }}
+    {{ form | payment_terms }}
+  {% endform %}
+
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;">
+${trustChips}
+  </div>
+
+  {% if shop.enabled_payment_types.size > 0 %}
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;">
+    {% for type in shop.enabled_payment_types %}
+      {{ type | payment_type_svg_tag: class: 'asb-payment-icon' }}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+${
+    testimonials.length > 0
+      ? `  <div id="asb-testimonial-ticker" style="display:flex;align-items:center;gap:12px;margin-top:26px;padding:14px 16px;background:${tint(brandColor, 8, NEUTRAL_BG)};border-radius:10px;overflow:hidden;">
+    <div id="asb-ticker-avatar" style="width:34px;height:34px;flex-shrink:0;border-radius:50%;background:${tint(brandColor, 20, NEUTRAL_BG)};color:${brandColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;"></div>
+    <p id="asb-ticker-text" style="margin:0;font-size:13px;color:${INK};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity .3s ease;"></p>
+  </div>
+  <script type="application/json" id="asb-testimonials-json">${testimonialTickerJson}</script>`
+      : ""
+  }
 </section>
 
 <div id="asb-sticky-bar" style="position:fixed;left:0;right:0;bottom:-100px;background:#fff;border-top:1px solid rgba(0,0,0,0.08);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 -6px 24px rgba(0,0,0,0.08);transition:bottom .3s ease;z-index:50;">
@@ -610,6 +623,31 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     tickCountdown();
     setInterval(tickCountdown, 1000);
+  }
+
+  var tickerJsonEl = document.getElementById('asb-testimonials-json');
+  var tickerText = document.getElementById('asb-ticker-text');
+  var tickerAvatar = document.getElementById('asb-ticker-avatar');
+  if (tickerJsonEl && tickerText && tickerAvatar) {
+    var tItems = JSON.parse(tickerJsonEl.textContent);
+    var tIdx = 0;
+    function renderTicker() {
+      if (!tItems.length) return;
+      var t = tItems[tIdx % tItems.length];
+      tickerText.textContent = '“' + t.quote + '” — ' + t.name;
+      tickerAvatar.textContent = (t.name.charAt(0) || '?').toUpperCase();
+      tIdx++;
+    }
+    if (tItems.length) {
+      renderTicker();
+      setInterval(function () {
+        tickerText.style.opacity = '0';
+        setTimeout(function () {
+          renderTicker();
+          tickerText.style.opacity = '1';
+        }, 300);
+      }, 4000);
+    }
   }
 
   var stickyBar = document.getElementById('asb-sticky-bar');
