@@ -28,8 +28,18 @@ async function markStepStarted(id: string, step: string, message: string) {
 function summarizeCompetitor(site: ScrapedSite | undefined): string {
   if (!site) return "No competitor data available.";
   const parts = [site.title, site.description].filter(Boolean);
+  if (site.headings && site.headings.length > 0) {
+    parts.push(`Page headings: ${site.headings.join(" | ")}`);
+  }
+  if (site.bodyExcerpt) {
+    parts.push(`Page copy excerpt: ${site.bodyExcerpt}`);
+  }
   if (site.products.length > 0) {
     parts.push(`Sells products such as: ${site.products.map((p) => p.title).join(", ")}`);
+    const withBody = site.products.find((p) => p.bodyText);
+    if (withBody?.bodyText) {
+      parts.push(`One product's description: ${withBody.bodyText}`);
+    }
   }
   return parts.join(". ") || "No competitor data available.";
 }

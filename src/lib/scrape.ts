@@ -8,6 +8,7 @@ export type ScrapedProduct = {
   title: string;
   images: string[];
   priceRange?: string;
+  bodyText?: string;
 };
 
 export type ScrapedSite = {
@@ -15,6 +16,8 @@ export type ScrapedSite = {
   ok: boolean;
   title?: string;
   description?: string;
+  headings?: string[];
+  bodyExcerpt?: string;
   images: string[];
   products: ScrapedProduct[];
   error?: string;
@@ -46,6 +49,20 @@ function looksLikeIcon(src: string): boolean {
   return /favicon|sprite|icon-|\.svg(\?|$)|logo/i.test(src);
 }
 
+/** Picks the first URL out of a `srcset`/`data-srcset` attribute (format: "url 1x, url2 2x, ..."). */
+function firstFromSrcset(srcset: string): string | undefined {
+  return srcset.split(",")[0]?.trim().split(/\s+/)[0];
+}
+
+/** Strips HTML tags down to plain text (used for Shopify product body_html). */
+function stripHtml(html: string): string {
+  return cheerio
+    .load(html)("body")
+    .text()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // Best-effort: most Shopify storefronts expose a public /products.json endpoint
 // unless password-protected. This gives structured data instead of scraping HTML.
 async function tryShopifyProductsJson(baseUrl: string): Promise<ScrapedProduct[] | null> {
@@ -59,6 +76,7 @@ async function tryShopifyProductsJson(baseUrl: string): Promise<ScrapedProduct[]
     return data.products.slice(0, 12).map(
       (p: {
         title?: string;
+        body_html?: string;
         images?: { src: string }[];
         variants?: { price?: string }[];
       }): ScrapedProduct => {
@@ -75,6 +93,7 @@ async function tryShopifyProductsJson(baseUrl: string): Promise<ScrapedProduct[]
           title: p.title ?? "Untitled product",
           images: (p.images ?? []).map((img) => img.src).filter(Boolean),
           priceRange,
+          bodyText: p.body_html ? stripHtml(p.body_html).slice(0, 600) : undefined,
         };
       },
     );
@@ -103,17 +122,50 @@ async function scrapeHtml(url: string): Promise<Omit<ScrapedSite, "url" | "produ
     const abs = absoluteUrl(ogImage, url);
     if (abs) imageSet.add(abs);
   }
-  $("img").each((_, el) => {
-    const src = $(el).attr("src") || $(el).attr("data-src");
+  const addImageCandidate = (src: string | undefined) => {
     if (!src || looksLikeIcon(src)) return;
     const abs = absoluteUrl(src, url);
     if (abs) imageSet.add(abs);
+  };
+  $("img").each((_, el) => {
+    addImageCandidate($(el).attr("src") || $(el).attr("data-src"));
+    const srcset = $(el).attr("srcset") || $(el).attr("data-srcset");
+    if (srcset) addImageCandidate(firstFromSrcset(srcset));
   });
+  // <picture><source>/<video> — covers animated GIFs served as srcset variants
+  // or as autoplaying muted MP4 loops (a common lightweight "GIF" replacement).
+  $("picture source, video source").each((_, el) => {
+    const srcset = $(el).attr("srcset") || $(el).attr("data-srcset");
+    if (srcset) addImageCandidate(firstFromSrcset(srcset));
+    addImageCandidate($(el).attr("src"));
+  });
+  $("video").each((_, el) => {
+    addImageCandidate($(el).attr("src"));
+    addImageCandidate($(el).attr("poster"));
+  });
+
+  const headings = Array.from(
+    new Set(
+      $("h1, h2, h3")
+        .map((_, el) => $(el).text().replace(/\s+/g, " ").trim())
+        .get()
+        .filter((t) => t.length > 0 && t.length < 140),
+    ),
+  ).slice(0, 12);
+
+  const bodyExcerpt = $("p")
+    .map((_, el) => $(el).text().replace(/\s+/g, " ").trim())
+    .get()
+    .filter((t) => t.length > 20)
+    .join(" ")
+    .slice(0, 1000);
 
   return {
     ok: true,
     title: title?.trim(),
     description: description?.trim(),
+    headings,
+    bodyExcerpt: bodyExcerpt || undefined,
     images: Array.from(imageSet).slice(0, 24),
   };
 }
@@ -138,6 +190,8 @@ export async function scrapeSite(url: string): Promise<ScrapedSite> {
       ok: htmlResult.ok || Boolean(shopifyProducts),
       title: htmlResult.title,
       description: htmlResult.description,
+      headings: htmlResult.headings,
+      bodyExcerpt: htmlResult.bodyExcerpt,
       images: htmlResult.images ?? [],
       products: shopifyProducts ?? [],
       error: htmlResult.error,

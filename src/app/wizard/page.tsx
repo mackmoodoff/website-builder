@@ -93,7 +93,8 @@ function WizardFormInner() {
             id="market"
             value={market}
             onChange={(e) => setMarket(e.target.value)}
-            className="rounded-md border border-neutral-300 px-3 py-2"
+            className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-neutral-900"
+            style={{ colorScheme: "light" }}
           >
             {MARKETS.map((m) => (
               <option key={m.code} value={m.code}>

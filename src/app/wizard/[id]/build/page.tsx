@@ -92,18 +92,21 @@ export default function BuildPage() {
         />
       </div>
 
-      <ul className="flex flex-col gap-2 text-sm">
-        {status?.buildLog.map((entry, i) => (
-          <li key={i} className="flex items-center gap-2">
-            <span>
-              {entry.status === "done" ? "✅" : entry.status === "error" ? "❌" : "⏳"}
-            </span>
-            <span className={entry.status === "error" ? "text-red-600" : "text-neutral-700"}>
-              {entry.message}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {status?.buildLog && status.buildLog.length > 0 && (
+        <div className="h-6 overflow-hidden text-sm">
+          {(() => {
+            const latest = status.buildLog[status.buildLog.length - 1];
+            return (
+              <p key={status.buildLog.length} className="build-step-anim flex items-center gap-2">
+                <span>{latest.status === "done" ? "✅" : latest.status === "error" ? "❌" : "⏳"}</span>
+                <span className={latest.status === "error" ? "text-red-600" : "text-neutral-700"}>
+                  {latest.message}
+                </span>
+              </p>
+            );
+          })()}
+        </div>
+      )}
 
       {status?.status === "failed" && !status.sitePlan && (
         <p className="text-sm text-red-600">Build failed: {status.error}</p>

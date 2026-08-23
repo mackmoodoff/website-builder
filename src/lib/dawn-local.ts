@@ -87,6 +87,12 @@ function starRow(brandColor: string): string {
   return `<span style="display:inline-flex;gap:2px;color:${brandColor};">${svgStar()}${svgStar()}${svgStar()}${svgStar()}${svgStar()}</span>`;
 }
 
+/** Initials avatar (no real photo implied) for a testimonial name, tinted with the brand color. */
+function avatarCircle(name: string, brandColor: string): string {
+  const initial = esc(name.trim().charAt(0).toUpperCase() || "?");
+  return `<div style="width:40px;height:40px;border-radius:50%;background:${tint(brandColor, 18, NEUTRAL_BG)};color:${brandColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0;">${initial}</div>`;
+}
+
 /** Shared CSS (buttons, cards, badge glow, scroll-reveal) — injected once via the header, which Shopify renders on every page. */
 function sharedStyleBlock(brandColor: string): string {
   const glow = tint(brandColor, 45, "transparent");
@@ -223,7 +229,10 @@ function buildHomeLiquid(
       (t, i) => `    <div class="asb-reveal asb-card" style="background:#ffffff;padding:28px;border-radius:12px;transition-delay:${i * 80}ms;">
       ${starRow(brandColor)}
       <p style="font-style:italic;color:#3a342c;margin:12px 0 16px;">&ldquo;${esc(t.quote)}&rdquo;</p>
-      <p style="font-weight:600;color:${brandColor};">&mdash; ${esc(t.name)}</p>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${avatarCircle(t.name, brandColor)}
+        <p style="font-weight:600;color:${brandColor};">${esc(t.name)}</p>
+      </div>
     </div>`,
     )
     .join("\n");
@@ -342,7 +351,10 @@ function buildProductLiquid(
       (t, i) => `    <div class="asb-reveal asb-card" style="background:#ffffff;padding:28px;border-radius:12px;transition-delay:${i * 80}ms;">
       ${starRow(brandColor)}
       <p style="font-style:italic;color:#3a342c;margin:12px 0 16px;">&ldquo;${esc(t.quote)}&rdquo;</p>
-      <p style="font-weight:600;color:${brandColor};">&mdash; ${esc(t.name)}</p>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${avatarCircle(t.name, brandColor)}
+        <p style="font-weight:600;color:${brandColor};">${esc(t.name)}</p>
+      </div>
     </div>`,
     )
     .join("\n");
